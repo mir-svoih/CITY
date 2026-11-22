@@ -13,6 +13,7 @@
     --shadow:0 6px 24px rgba(40,30,15,.18);
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{overscroll-behavior:none;}
   html,body{height:100%;overflow:hidden;background:#9fb675;font-family:"Golos Text",system-ui,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent}
   #map{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
   #map.drag{cursor:grabbing}
@@ -985,7 +986,21 @@ let sel=null,cur3d=null;
 const card=document.getElementById("card");
 const months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
 const fmtDate=s=>{const [y,m,d]=s.split("-").map(Number);return `${d} ${months[m-1]} ${y}`};
-function openCard(){card.classList.add("show");document.body.classList.add("carded");
+/* «Назад» (жест или кнопка) сначала закрывает 3D, потом карточку и только потом уводит с сайта */
+const layers=[];let skipPop=0;
+function pushLayer(name,url){try{history.pushState({layer:name},"",url);layers.push(name)}catch(e){}}
+function popLayer(name){ // закрытие кнопкой: убираем свой шаг из истории
+  if(layers[layers.length-1]===name){layers.pop();skipPop++;try{history.back()}catch(e){skipPop--}}
+}
+addEventListener("popstate",()=>{
+  if(skipPop>0){skipPop--;return}
+  const top=layers.pop();
+  if(top==="v3")closeV3(true);else if(top==="card")closeCard(true);
+});
+function openCard(url){
+  const u=url||location.pathname+location.search;
+  if(!card.classList.contains("show"))pushLayer("card",u);else{try{history.replaceState(history.state,"",u)}catch(e){}}
+  card.classList.add("show");document.body.classList.add("carded");
   requestAnimationFrame(()=>document.body.style.setProperty("--cardh",card.offsetHeight+"px"))}
 function select(h,fly){
   if(sel)sel.tag.classList.remove("sel");
@@ -1002,9 +1017,8 @@ function select(h,fly){
   document.getElementById("cFree").hidden=true;
   document.getElementById("c3d").hidden=false;cur3d={...h,title:"ДОМ №"+h.num,name:h.nick};
   document.getElementById("c3d").textContent="Посмотреть дом в 3D";
-  openCard();
+  openCard("#dom-"+h.num);
   if(fly)flyTo(viewOn(h.x,h.y,90));else apply();
-  try{history.replaceState(null,"","#dom-"+h.num)}catch(e){}
 }
 function showFree(q,p){
   if(sel){sel.tag.classList.remove("sel");sel=null}
@@ -1045,13 +1059,14 @@ function showBuilding(key){
   document.getElementById("c3d").textContent="Посмотреть в 3D";
   openCard();const [x,y]=BPOS[key]();flyTo(viewOn(x,y,key==="farm"?150:80));
 }
-function closeCard(){
+function closeCard(fromPop){
   if(!card.classList.contains("show"))return;
+  if(fromPop!==true&&v3.classList.contains("show"))closeV3();
   card.classList.remove("show");document.body.classList.remove("carded");
   if(sel){sel.tag.classList.remove("sel");sel=null;apply()}
-  try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}
+  if(fromPop!==true)popLayer("card");
 }
-document.getElementById("cardX").onclick=closeCard;
+document.getElementById("cardX").onclick=()=>closeCard();
 
 // ---------- поиск ----------
 const q=document.getElementById("q"),sugg=document.getElementById("sugg"),clr=document.getElementById("clr");
@@ -1101,9 +1116,17 @@ const v3=document.getElementById("v3d");
 document.getElementById("c3d").onclick=()=>{if(!cur3d)return;
   document.getElementById("v3id").textContent=cur3d.title;document.getElementById("v3nick").textContent=cur3d.name;
   v3.classList.add("show");
-  if(!House3D.open(document.getElementById("cv3d"),cur3d)){v3.classList.remove("show")}};
-document.getElementById("v3x").onclick=()=>{v3.classList.remove("show");House3D.close()};
-addEventListener("keydown",e=>{if(e.key==="Escape"&&v3.classList.contains("show")){v3.classList.remove("show");House3D.close()}});
+  if(!House3D.open(document.getElementById("cv3d"),cur3d)){v3.classList.remove("show");return}
+  pushLayer("v3",location.href)};
+function closeV3(fromPop){
+  if(!v3.classList.contains("show"))return;
+  v3.classList.remove("show");House3D.close();
+  if(fromPop!==true)popLayer("v3");
+}
+document.getElementById("v3x").onclick=()=>closeV3();
+addEventListener("keydown",e=>{if(e.key==="Escape"&&v3.classList.contains("show"))closeV3()});
+// жесты на карте и в 3D не должны прокручивать или «утаскивать» страницу
+["map","cv3d"].forEach(id=>document.getElementById(id).addEventListener("touchmove",e=>e.preventDefault(),{passive:false}));
 
 // ---------- «хочу дом» ----------
 const modal=document.getElementById("modal");
