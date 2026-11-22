@@ -281,6 +281,18 @@ const CITY = {
 };
 </script>
 
+<!-- Статистика: GoatCounter (без cookies и личных данных) -->
+<script data-goatcounter="https://mir-svoih.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+/* Событие в статистику. Ники и поисковые запросы НЕ отправляются — только название действия. */
+function track(name){
+  try{
+    const send=()=>window.goatcounter.count({path:name,title:name,event:true});
+    if(window.goatcounter&&window.goatcounter.count)send();
+    else{let n=0;const t=setInterval(()=>{if(window.goatcounter&&window.goatcounter.count){clearInterval(t);send()}else if(++n>20)clearInterval(t)},500)}
+  }catch(e){}
+}
+</script>
 <script>
 /* ===== 3D-модель дома: свой маленький WebGL-рендер, без библиотек ===== */
 const House3D=(()=>{
@@ -1003,6 +1015,7 @@ function openCard(url){
   card.classList.add("show");document.body.classList.add("carded");
   requestAnimationFrame(()=>document.body.style.setProperty("--cardh",card.offsetHeight+"px"))}
 function select(h,fly){
+  track("Открыли дом");
   if(sel)sel.tag.classList.remove("sel");
   sel=h;h.tag.classList.add("sel");
   // поднимаем табличку наверх
@@ -1021,6 +1034,7 @@ function select(h,fly){
   if(fly)flyTo(viewOn(h.x,h.y,90));else apply();
 }
 function showFree(q,p){
+  track("Свободный участок");
   if(sel){sel.tag.classList.remove("sel");sel=null}
   const [x,y]=plotPos(q,p);
   document.getElementById("cHid").textContent="СВОБОДНЫЙ УЧАСТОК";
@@ -1033,6 +1047,7 @@ function showFree(q,p){
   openCard();flyTo(viewOn(x,y,110));
 }
 function showGhost(o){
+  track("Голосование: "+o.name);
   if(sel){sel.tag.classList.remove("sel");sel=null}
   document.getElementById("cHid").textContent="ПОСТРОЙКА НА ВЫБОР · ВАРИАНТ "+o.n;
   document.getElementById("cNick").textContent=o.name;
@@ -1048,6 +1063,7 @@ function showGhost(o){
 const BPOS={farm:()=>CITY.farm,well:()=>CITY.well,watch:()=>CITY.watch};
 function showBuilding(key){
   const b=CITY.buildings.find(b=>b.key===key);if(!b)return;
+  track("Постройка: "+b.name);
   if(sel){sel.tag.classList.remove("sel");sel=null}
   document.getElementById("cHid").textContent="ПОСТРОЙКА ГОРОДА";
   document.getElementById("cNick").textContent=b.name;
@@ -1094,11 +1110,12 @@ function render(){
   const v=q.value;clr.style.display=v?"block":"none";
   if(!norm(v)){sugg.style.display="none";return}
   hits=find(v);hi=0;
-  if(!hits.length){sugg.innerHTML=`<div class="none">Такого жителя пока нет. Проверь ник: он должен совпадать с Instagram.<br><br><button class="btn" data-join style="height:38px">Как получить дом</button></div>`;}
+  clearTimeout(window.__nf);
+  if(!hits.length){window.__nf=setTimeout(()=>track("Поиск: не нашли"),1500);sugg.innerHTML=`<div class="none">Такого жителя пока нет. Проверь ник: он должен совпадать с Instagram.<br><br><button class="btn" data-join style="height:38px">Как получить дом</button></div>`;}
   else{const n=norm(v);sugg.innerHTML=hits.map((h,i)=>`<button data-i="${i}" class="${i===0?"on":""}"><span>${hl(h.nick,n)}</span><small>№${h.num}</small></button>`).join("")}
   sugg.style.display="block";
 }
-function pick(h){q.value=h.nick;sugg.style.display="none";q.blur();clr.style.display="block";select(h,true)}
+function pick(h){track("Поиск: нашли");q.value=h.nick;sugg.style.display="none";q.blur();clr.style.display="block";select(h,true)}
 q.addEventListener("input",render);
 q.addEventListener("focus",render);
 q.addEventListener("keydown",e=>{
@@ -1114,6 +1131,7 @@ clr.onclick=()=>{q.value="";render();q.focus()};
 // ---------- 3D ----------
 const v3=document.getElementById("v3d");
 document.getElementById("c3d").onclick=()=>{if(!cur3d)return;
+  track(cur3d.obj3d?(cur3d.ghost?"3D: призрак":"3D: постройка"):"3D: дом");
   document.getElementById("v3id").textContent=cur3d.title;document.getElementById("v3nick").textContent=cur3d.name;
   v3.classList.add("show");
   if(!House3D.open(document.getElementById("cv3d"),cur3d)){v3.classList.remove("show");return}
@@ -1131,7 +1149,9 @@ addEventListener("keydown",e=>{if(e.key==="Escape"&&v3.classList.contains("show"
 // ---------- «хочу дом» ----------
 const modal=document.getElementById("modal");
 document.getElementById("igLink").href=CITY.instagram;
-document.addEventListener("click",e=>{if(e.target.closest("[data-join]")){sugg.style.display="none";modal.classList.add("show")}});
+document.addEventListener("click",e=>{
+  if(e.target.closest(".iglink,#igLink"))track("Переход в Instagram");
+  if(e.target.closest("[data-join]")){track("Хочу свой дом");sugg.style.display="none";modal.classList.add("show")}});
 document.getElementById("modalX").onclick=()=>modal.classList.remove("show");
 modal.addEventListener("click",e=>{if(e.target===modal)modal.classList.remove("show")});
 
@@ -1152,8 +1172,9 @@ count("stPow",CITY.power.free,v=>v+"/"+CITY.power.total);
     <p>Эти жители работают постоянно. Стройка забирает силу только на время работ, потом она возвращается.</p>`;
   if(P.total-busy!==P.free)console.warn("Сила: сумма не сходится");
   const hover=matchMedia("(hover:hover)").matches;
-  if(hover){chip.addEventListener("mouseenter",()=>pop.classList.add("show"));chip.addEventListener("mouseleave",()=>pop.classList.remove("show"))}
-  chip.addEventListener("click",e=>{e.stopPropagation();if(hover)pop.classList.add("show");else pop.classList.toggle("show")});
+  let seen=false;const shown=()=>{if(!seen){seen=true;track("Расшифровка силы")}};
+  if(hover){chip.addEventListener("mouseenter",()=>{pop.classList.add("show");shown()});chip.addEventListener("mouseleave",()=>pop.classList.remove("show"))}
+  chip.addEventListener("click",e=>{e.stopPropagation();if(hover)pop.classList.add("show");else pop.classList.toggle("show");if(pop.classList.contains("show"))shown()});
   document.addEventListener("pointerdown",e=>{if(!chip.contains(e.target))pop.classList.remove("show")});
 })();
 
