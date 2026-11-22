@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Город — найди свой дом</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2b2418; --ink2:#5b4e3a; --paper:#fbf7ee; --line:#e3d8c3;
+    --accent:#b5652f; --accent2:#8f4a1f; --ok:#4f7a3a;
+    --shadow:0 6px 24px rgba(40,30,15,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#9fb675;font-family:"Golos Text",system-ui,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent}
+  #map{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+  #map.drag{cursor:grabbing}
+
+  /* top bar */
+  .top{position:fixed;left:0;right:0;top:0;padding:12px 12px 0;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:5}
+  .brand{display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:auto}
+  .title{font-family:Manrope,sans-serif;font-weight:800;font-size:18px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35);letter-spacing:.2px}
+  .stats{display:flex;gap:6px}
+  .chip{background:rgba(251,247,238,.95);border-radius:999px;padding:6px 11px;font:700 12px Manrope,sans-serif;box-shadow:var(--shadow);white-space:nowrap}
+  .chip b{color:var(--accent2)}
+  .search{position:relative;pointer-events:auto;max-width:520px;width:100%}
+  .search input{width:100%;height:48px;border:0;border-radius:14px;padding:0 44px 0 44px;font:500 16px "Golos Text",sans-serif;background:var(--paper);box-shadow:var(--shadow);color:var(--ink);outline:none}
+  .search input:focus{box-shadow:0 0 0 3px rgba(181,101,47,.35),var(--shadow)}
+  .search .ico{position:absolute;left:14px;top:14px;width:20px;height:20px;opacity:.55}
+  .search .clr{position:absolute;right:8px;top:8px;width:32px;height:32px;border:0;background:none;font-size:20px;color:var(--ink2);cursor:pointer;display:none}
+  .sugg{position:absolute;left:0;right:0;top:54px;background:var(--paper);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;display:none;max-height:50vh;overflow-y:auto}
+  .sugg button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;border:0;background:none;padding:12px 14px;font:500 15px "Golos Text",sans-serif;text-align:left;color:var(--ink);cursor:pointer;border-top:1px solid var(--line)}
+  .sugg button:first-child{border-top:0}
+  .sugg button:hover,.sugg button.on{background:#f1e8d6}
+  .sugg small{color:var(--ink2);font:600 12px Manrope,sans-serif;white-space:nowrap}
+  .sugg .none{padding:14px;font-size:14px;color:var(--ink2);line-height:1.4}
+  mark{background:#f3d8b8;color:inherit;border-radius:3px}
+
+  /* card */
+  .card{position:fixed;left:12px;right:12px;bottom:12px;max-width:420px;background:var(--paper);border-radius:18px;box-shadow:var(--shadow);padding:16px 16px 14px;z-index:6;transform:translateY(130%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+  .card.show{transform:none}
+  .card .x{position:absolute;right:8px;top:8px;width:34px;height:34px;border:0;background:none;font-size:22px;color:var(--ink2);cursor:pointer}
+  .card .hid{font:800 12px Manrope,sans-serif;color:var(--accent);letter-spacing:.6px}
+  .card h2{font:800 22px Manrope,sans-serif;margin:2px 36px 8px 0;word-break:break-all}
+  .card .feat{font-size:15px;line-height:1.4;margin-bottom:10px}
+  .card .meta{display:flex;flex-wrap:wrap;gap:6px}
+  .card .meta span{background:#efe5d1;border-radius:8px;padding:5px 9px;font:600 12px Manrope,sans-serif;color:var(--ink2)}
+  .card .free{margin-top:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;padding:0 16px;border:0;border-radius:12px;background:var(--accent);color:#fff;font:800 15px Manrope,sans-serif;cursor:pointer;text-decoration:none;box-shadow:0 3px 10px rgba(143,74,31,.3)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:var(--paper);color:var(--ink);box-shadow:var(--shadow)}
+
+  /* bottom controls */
+  .ctrl{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;z-index:4;transition:bottom .35s}
+  .ctrl button{width:44px;height:44px;border-radius:12px;border:0;background:var(--paper);box-shadow:var(--shadow);font:800 20px Manrope,sans-serif;color:var(--ink);cursor:pointer}
+  .cta{position:fixed;left:12px;bottom:12px;z-index:4;transition:opacity .25s}
+  body.carded .cta{opacity:0;pointer-events:none}
+  body.carded .ctrl{bottom:calc(12px + var(--cardh,0px) + 8px)}
+  @media (min-width:760px){
+    body.carded .ctrl{bottom:12px}
+    .card{right:auto;width:400px}
+    body.carded .cta{opacity:1;pointer-events:auto;left:auto;right:68px}
+  }
+
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(30,22,10,.45);display:none;align-items:flex-end;justify-content:center;z-index:10;padding:12px}
+  .modal.show{display:flex}
+  @media (min-width:760px){.modal{align-items:center}}
+  .sheet{background:var(--paper);border-radius:20px;max-width:440px;width:100%;padding:22px 20px 18px;box-shadow:var(--shadow);position:relative}
+  .sheet h3{font:800 21px Manrope,sans-serif;margin-bottom:6px}
+  .sheet p{font-size:15px;line-height:1.45;color:var(--ink2);margin-bottom:14px}
+  .steps{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+  .step{display:flex;gap:12px;align-items:flex-start;background:#f1e8d6;border-radius:14px;padding:12px}
+  .step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--ok);color:#fff;font:800 15px Manrope,sans-serif;display:flex;align-items:center;justify-content:center}
+  .step b{display:block;font:800 15px Manrope,sans-serif;margin-bottom:2px}
+  .step span{font-size:14px;color:var(--ink2);line-height:1.35}
+  .warn{font:600 13px "Golos Text",sans-serif;color:var(--accent2);margin-bottom:14px}
+  .sheet .x{position:absolute;right:10px;top:10px;width:34px;height:34px;border:0;background:none;font-size:22px;color:var(--ink2);cursor:pointer}
+  .sheet .btn{width:100%}
+
+  .note{position:fixed;left:50%;transform:translateX(-50%);bottom:64px;font:600 11px Manrope,sans-serif;color:rgba(255,255,255,.85);text-shadow:0 1px 2px rgba(0,0,0,.4);pointer-events:none;z-index:3;white-space:nowrap}
+  body.carded .note{display:none}
+
+  /* svg */
+  .tag rect{fill:#fff}
+  .tag text{font:700 12px Manrope,sans-serif;fill:#2b2418}
+  .tag.sel rect{fill:#b5652f}
+  .tag.sel text{fill:#fff}
+  .qlabel{font:800 9px Manrope,sans-serif;fill:rgba(60,48,25,.55);letter-spacing:.5px}
+  .house{cursor:pointer}
+  .qlabel,.pulse{pointer-events:none}
+  .tag.sel .tail{fill:#b5652f}
+  .gtag rect{fill:rgba(43,36,24,.78)}
+  .gtag text{font:700 11px Manrope,sans-serif;fill:#fff}
+  .gtag circle{fill:#fff}
+  .gtag .gn{font:800 11px Manrope,sans-serif;fill:#2b2418}
+  .ghost{animation:breathe 2.6s ease-in-out infinite}
+  @keyframes breathe{50%{opacity:.6}}
+  .v3d{position:fixed;inset:0;z-index:9;background:linear-gradient(#cfe2ee 0%,#eaf1e6 55%,#dfe7cf 100%);display:none}
+  .v3d.show{display:block}
+  .v3d canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  .v3top{position:absolute;left:12px;right:12px;top:12px;display:flex;justify-content:space-between;align-items:flex-start;background:rgba(251,247,238,.92);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow);max-width:440px}
+  .v3top .hid{font:800 12px Manrope,sans-serif;color:var(--accent);letter-spacing:.6px}
+  .v3nick{font:800 20px Manrope,sans-serif;word-break:break-all}
+  .v3top .x{width:34px;height:34px;border:0;background:none;font-size:24px;color:var(--ink2);cursor:pointer;flex:0 0 auto}
+  .v3hint{position:absolute;left:0;right:0;bottom:18px;text-align:center;font:700 13px Manrope,sans-serif;color:rgba(43,36,24,.6);pointer-events:none}
+  .pulse{animation:pulse 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes pulse{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(1.8)}}
+</style>
+</head>
+<body>
+
+<svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="Карта города"></svg>
+
+<div class="top">
+  <div class="brand">
+    <div class="title">Наш город</div>
+    <div class="stats">
+      <div class="chip">Жителей <b id="stRes">0</b></div>
+      <div class="chip">Сила <b id="stPow">0</b></div>
+    </div>
+  </div>
+  <div class="search">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#2b2418" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+    <input id="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Найди свой дом: введи ник">
+    <button class="clr" id="clr" aria-label="Очистить">×</button>
+    <div class="sugg" id="sugg"></div>
+  </div>
+</div>
+
+<div class="card" id="card">
+  <button class="x" id="cardX" aria-label="Закрыть">×</button>
+  <div class="hid" id="cHid"></div>
+  <h2 id="cNick"></h2>
+  <div class="feat" id="cFeat"></div>
+  <div class="meta" id="cMeta"></div>
+  <button class="btn ghost" id="c3d" style="margin-top:12px;width:100%">Посмотреть дом в 3D</button>
+  <div class="free" id="cFree" hidden><button class="btn" data-join>Хочу свой дом</button></div>
+</div>
+
+<div class="ctrl">
+  <button id="zin" aria-label="Приблизить">+</button>
+  <button id="zout" aria-label="Отдалить">−</button>
+  <button id="zall" aria-label="Весь город" style="font-size:16px">⌂</button>
+</div>
+<div class="cta"><button class="btn" data-join>Хочу свой дом</button></div>
+<div class="note">Схема города · данные на 22.11.2026</div>
+
+<div class="v3d" id="v3d">
+  <canvas id="cv3d"></canvas>
+  <div class="v3top"><div><div class="hid" id="v3id"></div><div class="v3nick" id="v3nick"></div></div><button class="x" id="v3x" aria-label="Закрыть">×</button></div>
+  <div class="v3hint">Крути пальцем · щипок приближает</div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <button class="x" id="modalX" aria-label="Закрыть">×</button>
+    <h3>Свой дом в городе</h3>
+    <p>Каждый житель получает собственный дом с табличкой, на которой написан его ник.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><b>Подпишись</b><span>на аккаунт города в Instagram</span></div></div>
+      <div class="step"><div class="n">2</div><div><b>Напиши комментарий</b><span>«Хочу в город» под любым роликом. Можно добавить пожелание к дому.</span></div></div>
+    </div>
+    <div class="warn">Дом получает только тот, кто сделал оба шага.</div>
+    <a class="btn" id="igLink" href="https://www.instagram.com/mir_svoih/" target="_blank" rel="noopener">Открыть Instagram</a>
+  </div>
+</div>
+
+<script>
+/* ===================== ДАННЫЕ ГОРОДА =====================
+   Обновляются после каждого заселения (источник — реестр жителей).
+   q — квартал, p — участок (1–3 верхний ряд с запада на восток, 4–6 нижний). */
+const CITY = {
+  updated: "22.11.2026",
+  power: { free: 50, total: 63 },
+  instagram: "https://www.instagram.com/mir_svoih/",
+  residents: [
+    ["@mir_svoih","H-000001",0,0,"2026-11-17","Основатель. Первый дом города, у реки"],
+    ["@sanecka0706","H-000002",1,1,"2026-11-18","Дом с террасой"],
+    ["@kanashi_miii","H-000003",1,2,"2026-11-18","Коттедж с флагом Армении"],
+    ["@alexgalkinvb","H-000004",1,3,"2026-11-18","Дом, отмытый после пожара. Рядом будка ночного дозора"],
+    ["@ilya.vlasenko","H-000005",1,4,"2026-11-18","Обычный дом"],
+    ["@n_n_ukh","H-000006",1,5,"2026-11-18","Обычный дом"],
+    ["@_helen.le_","H-000007",1,6,"2026-11-18","Большой дом с балконом и чёрная лошадь во дворе"],
+    ["@_oehwsube_","H-000008",2,1,"2026-11-18","Дом со створками спуска в подвал"],
+    ["@aleksandr_kpd","H-000009",2,2,"2026-11-18","Обычный дом"],
+    ["@vasichev.nikolai","H-000010",2,3,"2026-11-20","Обычный дом"],
+    ["@elen_g6","H-000011",2,4,"2026-11-20","Дом с конюшней и левадой, гнедой конь"],
+    ["@artem__7888","H-000012",2,5,"2026-11-20","Обычный дом"],
+    ["@evgeniy_rebo","H-000013",7,3,"2026-11-20","Через улицу от друга, @sanecka0706"],
+    ["@zhandarbeksh","H-000014",3,1,"2026-11-20","Дом с беседкой"],
+    ["@viktor60074","H-000015",3,2,"2026-11-20","Обычный дом"],
+    ["@95tp_lixarowskiego","H-000016",3,3,"2026-11-20","Длинный дом в форме буквы «С»"],
+    ["@elbahcoutnu","H-000017",3,4,"2026-11-20","Обычный дом"],
+    ["@firdavs.ft","H-000018",3,5,"2026-11-20","Обычный дом"],
+    ["@kamron_1666","H-000019",3,6,"2026-11-20","Обычный дом"],
+    ["@vlad10851","H-000020",4,1,"2026-11-20","Обычный дом"],
+    ["@sapryginooovvv","H-000021",4,2,"2026-11-20","Обычный дом"],
+    ["@israilov_bay","H-000022",4,3,"2026-11-20","Обычный дом"],
+    ["@kenzhekulovna_","H-000023",4,4,"2026-11-20","Обычный дом"],
+    ["@_ikrom_ikromov_","H-000024",4,5,"2026-11-20","Обычный дом"],
+    ["@chyngyziva07","H-000025",4,6,"2026-11-20","Обычный дом"],
+    ["@tired_frozen_strw","H-000026",5,1,"2026-11-20","Обычный дом"],
+    ["@8_.alina._","H-000027",5,2,"2026-11-20","Обычный дом"],
+    ["@alekseakubov","H-000028",5,3,"2026-11-20","Обычный дом"],
+    ["@ani124_515","H-000029",5,4,"2026-11-20","Обычный дом"],
+    ["@vedmenskaia","H-000030",5,5,"2026-11-20","Обычный дом"],
+    ["@ivan121981","H-000031",5,6,"2026-11-20","Дом с гортензиями"],
+    ["@mega_moz_leo","H-000032",6,1,"2026-11-20","Обычный дом"],
+    ["@kapitulailla100","H-000033",6,2,"2026-11-20","Обычный дом"],
+    ["@nikita777_4343","H-000034",2,6,"2026-11-20","Обычный дом"],
+    ["@st.cartter","H-000035",7,5,"2026-11-22","Обычный дом. Ждал его с самого первого ролика"],
+    ["@a_pennywise","H-000036",7,4,"2026-11-22","Обычный дом"],
+    ["@eldxww","H-000037",7,6,"2026-11-22","Коттедж"],
+    ["@daler_0948","H-000038",6,3,"2026-11-22","Обычный дом"],
+    ["@bogolov.001","H-000039",6,4,"2026-11-22","Обычный дом"],
+    ["@evgentisuk","H-000040",6,5,"2026-11-22","Дом с беседкой"],
+    ["@bish.kek7095","H-000041",6,6,"2026-11-22","Обычный дом"],
+    ["@baitikovabdu","H-000042",10,1,"2026-11-22","Флюгер-летучая мышь на коньке"],
+    ["@icedrink29","H-000043",10,2,"2026-11-22","Обычный дом"],
+    ["@ai.bek9970","H-000044",10,3,"2026-11-22","Большой дом с мансардой"],
+    ["@abdurzakov58","H-000045",10,4,"2026-11-22","Большой дом с мансардой, из трубы идёт дым"],
+    ["@bagryusha","H-000046",10,5,"2026-11-22","Обычный дом"],
+    ["@lon_eblaze","H-000047",9,1,"2026-11-22","Дом со светёлкой, теремком на крыше"],
+    ["@chameleon.9938173","H-000048",10,6,"2026-11-22","Большой дом с мансардой"],
+    ["@natashik_colorist","H-000049",9,4,"2026-11-22","Дом с конюшней на две лошади"],
+    ["@_zz_vv_26","H-000050",9,6,"2026-11-22","Большой дом с мансардой"],
+    ["@imk2014tt","H-000051",9,5,"2026-11-22","Сова на коньке и круглое окно"],
+    ["@arsanov_666","H-000052",11,1,"2026-11-22","Обычный дом"],
+    ["@syrgakff","H-000053",9,2,"2026-11-22","Дом в форме буквы «С» и пёс-хаски у будки"],
+    ["@aywen_339","H-000054",11,2,"2026-11-22","Большой дом с мансардой"],
+    ["@magomed_05_2025","H-000055",9,3,"2026-11-22","Дом на дереве с лестницей и площадкой"],
+    ["@bondarchukmisha20","H-000056",11,3,"2026-11-22","Обычный дом"],
+    ["@quietwave_05","H-000057",11,4,"2026-11-22","Обычный дом"],
+    ["@muhammad_soltakhanov","H-000058",8,1,"2026-11-22","Обычный дом"],
+    ["@duishobaevv7","H-000059",8,2,"2026-11-22","Обычный дом"],
+    ["@rizhyivim2","H-000060",8,3,"2026-11-22","Обычный дом"],
+    ["@vietamerney","H-000061",8,4,"2026-11-22","Обычный дом"],
+    ["@ol_esia3381","H-000062",8,5,"2026-11-22","Обычный дом"],
+    ["@arm.poghos1ann.01","H-000063",8,6,"2026-11-22","Обычный дом"]
+  ],
+  quarters: {1:[0,-73],2:[0,-123],3:[-72,-123],4:[72,-123],5:[0,-173],6:[-72,-173],7:[-72,-73],8:[72,-173],9:[0,-223],10:[-72,-223],11:[72,-223]},
+  freePlots: [[11,5],[11,6]],
+  /* Постройки на выбор — текущее голосование (REEL-005). Места — как в ролике. */
+  vote: {
+    title: "Голосование: где жителям встречаться?",
+    options: [
+      {n:1, name:"Торговые ряды", x:-40, y:-12, cost:38, workers:8, shape:"market",
+       text:"Ряды лавок под навесами: здесь жители будут торговать и встречаться."},
+      {n:2, name:"Деревенская площадь", x:36, y:-12, cost:49, workers:1, shape:"square",
+       text:"Площадь для праздников и сборов. Почти вся сила города, зато работает один смотритель."},
+      {n:3, name:"Трактир", x:66, y:-16, cost:38, workers:3, shape:"tavern",
+       text:"Тёплый трактир у дороги, где по вечерам собирается весь город."}
+    ]
+  },
+  founder: [0, 14],
+  roadY: -46,
+  well: [0, -46],
+  watch: [37, -50],
+  farm: [72, -73],
+  grove: [152, -118, 24]
+};
+</script>
+
+<script>
+/* ===== 3D-модель дома: свой маленький WebGL-рендер, без библиотек ===== */
+const House3D=(()=>{
+const hex=c=>{const n=parseInt(c.slice(1),16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]};
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const nrm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+function rot(p,[rx,ry,rz]){
+  let [x,y,z]=p,c,s;
+  if(rz){c=Math.cos(rz);s=Math.sin(rz);[x,y]=[x*c-y*s,x*s+y*c]}
+  if(rx){c=Math.cos(rx);s=Math.sin(rx);[y,z]=[y*c-z*s,y*s+z*c]}
+  if(ry){c=Math.cos(ry);s=Math.sin(ry);[x,z]=[x*c+z*s,-x*s+z*c]}
+  return[x,y,z];
+}
+
+/* ---------- построение геометрии ---------- */
+class Mesh{
+  constructor(){this.P=[];this.N=[];this.C=[];this.st=[]}
+  push(t=[0,0,0],r=[0,0,0]){this.st.push({t,r});return this}
+  pop(){this.st.pop();return this}
+  xf(p){for(let i=this.st.length-1;i>=0;i--){const s=this.st[i];p=rot(p,s.r);p=[p[0]+s.t[0],p[1]+s.t[1],p[2]+s.t[2]]}return p}
+  tri(a,b,c,col,ref){
+    a=this.xf(a);b=this.xf(b);c=this.xf(c);
+    let n=nrm(cross(sub(b,a),sub(c,a)));
+    if(ref){ref=this.xf(ref);const m=[(a[0]+b[0]+c[0])/3,(a[1]+b[1]+c[1])/3,(a[2]+b[2]+c[2])/3];if(dot(n,sub(m,ref))<0)n=n.map(v=>-v)}
+    const k=typeof col==="string"?hex(col):col;
+    this.P.push(...a,...b,...c);for(let i=0;i<3;i++){this.N.push(...n);this.C.push(...k)}
+  }
+  quad(a,b,c,d,col,ref){this.tri(a,b,c,col,ref);this.tri(a,c,d,col,ref)}
+  box(x,y,z,w,h,d,col,r){
+    if(r)this.push([x,y,z],r),x=y=z=0;
+    const X=[x-w/2,x+w/2],Y=[y-h/2,y+h/2],Z=[z-d/2,z+d/2],ref=[x,y,z];
+    const v=(i,j,k)=>[X[i],Y[j],Z[k]];
+    this.quad(v(0,0,0),v(1,0,0),v(1,1,0),v(0,1,0),col,ref);
+    this.quad(v(0,0,1),v(1,0,1),v(1,1,1),v(0,1,1),col,ref);
+    this.quad(v(0,0,0),v(0,0,1),v(0,1,1),v(0,1,0),col,ref);
+    this.quad(v(1,0,0),v(1,0,1),v(1,1,1),v(1,1,0),col,ref);
+    this.quad(v(0,1,0),v(1,1,0),v(1,1,1),v(0,1,1),col,ref);
+    this.quad(v(0,0,0),v(1,0,0),v(1,0,1),v(0,0,1),col,ref);
+    if(r)this.pop();
+  }
+  cyl(x,y,z,rad,len,axis,col,seg=7,col2){
+    const pt=(a,t)=>{const u=Math.cos(a)*rad,v=Math.sin(a)*rad;
+      return axis==="x"?[x+t,y+u,z+v]:axis==="z"?[x+u,y+v,z+t]:[x+u,y+t,z+v]};
+    const ref=[x,y,z];
+    for(let i=0;i<seg;i++){const a0=i/seg*Math.PI*2,a1=(i+1)/seg*Math.PI*2;
+      this.quad(pt(a0,-len/2),pt(a1,-len/2),pt(a1,len/2),pt(a0,len/2),col,ref);
+      const e1=axis==="x"?[x+len/2,y,z]:axis==="z"?[x,y,z+len/2]:[x,y+len/2,z];
+      const e0=axis==="x"?[x-len/2,y,z]:axis==="z"?[x,y,z-len/2]:[x,y-len/2,z];
+      this.tri(e1,pt(a0,len/2),pt(a1,len/2),col2||col,ref);
+      this.tri(e0,pt(a0,-len/2),pt(a1,-len/2),col2||col,ref);
+    }
+  }
+  cone(x,y,z,rad,h,col,seg=8){
+    const ref=[x,y+h*.3,z];
+    for(let i=0;i<seg;i++){const a0=i/seg*Math.PI*2,a1=(i+1)/seg*Math.PI*2;
+      const p0=[x+Math.cos(a0)*rad,y,z+Math.sin(a0)*rad],p1=[x+Math.cos(a1)*rad,y,z+Math.sin(a1)*rad];
+      this.tri(p0,p1,[x,y+h,z],col,ref);this.tri(p0,p1,[x,y,z],col,ref)}
+  }
+  ball(x,y,z,r,col,sy=1){
+    const la=4,lo=7,ref=[x,y,z];
+    const p=(i,j)=>{const t=i/la*Math.PI,f=j/lo*Math.PI*2;return[x+Math.sin(t)*Math.cos(f)*r,y+Math.cos(t)*r*sy,z+Math.sin(t)*Math.sin(f)*r]};
+    for(let i=0;i<la;i++)for(let j=0;j<lo;j++)this.quad(p(i,j),p(i+1,j),p(i+1,j+1),p(i,j+1),col,ref);
+  }
+}
+
+/* ---------- палитра ---------- */
+const K={log:"#a0683f",log2:"#8e5a35",end:"#c99a6b",roof:"#5d4130",roof2:"#4e3626",stone:"#8d8a80",stone2:"#77746b",
+  win:"#3d5566",frame:"#e8dcc4",door:"#5a3a24",grass:"#93b267",grass2:"#86a65c",soil:"#7a5a38",leaf:"#6d9a45",
+  fence:"#9c7a52",trunk:"#6b4a2f",tree:"#5f8248",tree2:"#6b8f4f"};
+
+/* ---------- части дома ---------- */
+// бревенчатый сруб с двускатной крышей; конёк вдоль X, фасад (+Z)
+function cabin(m,{W=8,D=6,H=2.6,rh=2,ov=.6,door=true,winSide=true,chimney=true,gableWin=false,roundWin=false}={}){
+  const r=.17,step=r*1.86,n=Math.round(H/step);
+  m.box(0,.25,0,W+.4,.5,D+.4,K.stone);
+  for(let i=0;i<n;i++){
+    const y=.5+r+i*step, c=i%2?K.log:K.log2, odd=i%2===0;
+    // длинные стены
+    m.cyl(0,y+(odd?0:r*.0),D/2,r,W+.7,"x",c,6,K.end);
+    m.cyl(0,y,-D/2,r,W+.7,"x",c,6,K.end);
+    // торцы
+    m.cyl(W/2,y+r*.5,0,r,D+.7,"z",i%2?K.log2:K.log,6,K.end);
+    m.cyl(-W/2,y+r*.5,0,r,D+.7,"z",i%2?K.log2:K.log,6,K.end);
+  }
+  const top=.5+n*step;
+  // фронтоны
+  [W/2,-W/2].forEach(x=>{
+    const sx=x>0?1:-1;
+    m.tri([x,top,-D/2],[x,top,D/2],[x,top+rh,0],K.log,[x-sx,top+rh/3,0]);
+    if(gableWin)m.box(x+sx*.03,top+rh*.38,0,.08,.8,.7,K.win),m.box(x+sx*.02,top+rh*.38,0,.06,1,.9,K.frame);
+    if(roundWin&&x>0){m.cyl(x+.05,top+rh*.4,0,.42,.1,"x",K.frame,10);m.cyl(x+.09,top+rh*.4,0,.32,.1,"x",K.win,10)}
+  });
+  // крыша
+  const half=D/2, L=Math.hypot(half,rh)+ov, a=Math.atan2(rh,half);
+  [1,-1].forEach(s=>{
+    const ex=[0,top+rh-Math.sin(a)*L,s*Math.cos(a)*L];
+    m.box(0,(top+rh+ex[1])/2+.08,(0+ex[2])/2,W+1.2,.16,L,s>0?K.roof:K.roof2,[s*a,0,0]);
+  });
+  m.box(0,top+rh+.12,0,W+1.3,.18,.3,K.roof2); // конёк
+  // окна и дверь
+  const win=(x,y,z,ry)=>{m.push([x,y,z],[0,ry,0]);m.box(0,0,.02,1.15,1.1,.12,K.frame);m.box(0,0,.06,.85,.8,.1,K.win);m.box(0,0,.1,.08,.8,.04,K.frame);m.box(0,-.6,.12,1.3,.1,.25,K.frame);m.pop()};
+  if(door){m.box(0,.5+1,D/2+.12,1.1,2,.14,K.door);m.box(0,.5+1,D/2+.08,1.35,2.2,.1,K.frame);m.box(0,.3,D/2+.6,1.8,.2,.8,K.stone2)}
+  const wy=.5+H*.55;
+  win(W*.3,wy,D/2+.1,0);win(-W*.3,wy,D/2+.1,0);
+  win(W*.25,wy,-D/2-.1,Math.PI);win(-W*.25,wy,-D/2-.1,Math.PI);
+  if(winSide){win(W/2+.1,wy,0,Math.PI/2);win(-W/2-.1,wy,0,-Math.PI/2)}
+  if(chimney){m.box(W*.25,top+rh*.7,-D*.18,.7,rh*1.4+.6,.7,K.stone);m.box(W*.25,top+rh*1.4+.35,-D*.18,.85,.15,.85,K.stone2)}
+  return top;
+}
+function plot(m,{garden=true}={}){
+  m.box(0,-.15,0,22,.3,22,K.grass);
+  m.box(0,-.12,0,21,.3,21,K.grass2);
+  // забор
+  for(let i=-10;i<=10;i+=2.5){[[i,10.5],[i,-10.5],[10.5,i],[-10.5,i]].forEach(([x,z])=>m.box(x,.5,z,.15,1,.15,K.fence))}
+  [[0,10.5,21,.08],[0,-10.5,21,.08]].forEach(([x,z,w])=>{m.box(x,.75,z,w,.1,.08,K.fence);m.box(x,.4,z,w,.1,.08,K.fence)});
+  [[10.5],[-10.5]].forEach(([x])=>{m.box(x,.75,0,.08,.1,21,K.fence);m.box(x,.4,0,.08,.1,21,K.fence)});
+  if(garden){m.box(0,.05,-7.3,9,.2,4,K.soil);for(let i=0;i<4;i++)for(let j=0;j<7;j++)m.ball(-3.6+j*1.2,.35,-8.7+i*.95,.32,K.leaf,.7)}
+  // дорожка
+  m.box(0,.02,7,1.4,.1,6.5,"#c9b48a");
+}
+function tree(m,x,z,s=1){m.cyl(x,1.2*s,z,.22*s,2.4*s,"y",K.trunk,6);m.ball(x,3*s,z,1.5*s,K.tree);m.ball(x+.5*s,3.7*s,z-.3*s,1.1*s,K.tree2)}
+function horse(m,x,z,ry,col,mane="#2a2018"){
+  m.push([x,0,z],[0,ry,0]);
+  m.box(0,1.25,0,1.7,.75,.6,col);
+  [[.65,.22],[.65,-.22],[-.65,.22],[-.65,-.22]].forEach(([a,b])=>m.box(a,.5,b,.18,1,.18,col));
+  m.box(1.0,1.75,0,.35,.9,.35,col,[0,0,-.55]);
+  m.box(1.35,2.05,0,.75,.32,.3,col,[0,0,-.25]);
+  m.box(.9,1.9,0,.12,.8,.2,mane,[0,0,-.55]);
+  m.box(-.95,1.1,0,.12,.8,.18,mane,[0,0,.3]);
+  m.pop();
+}
+function gazebo(m,x,z){
+  m.push([x,0,z]);
+  m.cyl(0,.1,0,1.7,.2,"y",K.stone,8);
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2;m.box(Math.cos(a)*1.4,1.2,Math.sin(a)*1.4,.14,2.2,.14,K.log)}
+  m.cone(0,2.3,0,2.2,1.3,K.roof,6);
+  m.box(0,.55,-.8,1.8,.12,.45,K.log2);
+  m.pop();
+}
+function stable(m,x,z,ry,w=5){m.push([x,0,z],[0,ry,0]);m.box(0,1.2,0,w,2.4,3.2,K.log2);m.push([0,2.4,0]);
+  m.tri([-w/2,0,-1.6],[-w/2,0,1.6],[-w/2,1.2,0],K.log,[0,.5,0]);m.tri([w/2,0,-1.6],[w/2,0,1.6],[w/2,1.2,0],K.log,[0,.5,0]);
+  [1,-1].forEach(s=>m.box(0,.62,s*.85,w+.5,.12,2.1,K.roof,[s*.95,0,0]));m.pop();
+  m.box(0,1,1.62,1.6,2,.08,K.door);m.pop()}
+function hitch(m,x,z,ry,w=3){m.push([x,0,z],[0,ry,0]);m.box(-w/2,.6,0,.15,1.2,.15,K.fence);m.box(w/2,.6,0,.15,1.2,.15,K.fence);m.box(0,1.15,0,w+.2,.12,.12,K.fence);m.pop()}
+
+/* ---------- сборка по дому ---------- */
+function build(h){
+  const m=new Mesh(), id=h.id;
+  plot(m,{garden:!["H-000055"].includes(id)});
+  const kind=h.kind;
+  if(kind==="tree"){
+    m.cyl(0,5.5,-1,.9,11,"y",K.trunk,8);
+    m.box(1.6,9.2,-1,3,.35,.35,K.trunk,[0,0,.5]);m.box(-1.6,9.4,-1.4,3,.35,.35,K.trunk,[0,0,-.5]);
+    [[0,12,-1.5,3.4],[2.6,10.9,-.6,2.4],[-2.6,11,-2,2.4],[.6,13.4,-2.2,2.2],[-.4,11.3,.9,2.1]].forEach(([x,y,z,r],i)=>m.ball(x,y,z,r,i%2?K.tree:K.tree2));
+    [[-2.6,1.6],[2.6,1.6],[-2.6,-3.6],[2.6,-3.6]].forEach(([x,z])=>m.box(x,2,z,.25,4,.25,K.log2));
+    m.box(0,4.1,-1,6.4,.25,6.4,K.log);
+    for(let i=-3;i<=3;i+=1)[[i,2.1],[i,-4.1]].forEach(([x,z])=>m.box(x,4.7,z,.1,1,.1,K.fence));
+    m.box(0,5.15,2.1,6.4,.1,.1,K.fence);m.box(0,5.15,-4.1,6.4,.1,.1,K.fence);
+    m.push([0,4.2,-1.4]);cabin(m,{W:4.2,D:3.4,H:1.9,rh:1.4,ov:.4,winSide:false,chimney:false});m.pop();
+    m.push([2.2,2.05,3.4],[-.45,0,0]);m.box(-.4,0,0,.1,4.6,.1,K.fence);m.box(.4,0,0,.1,4.6,.1,K.fence);
+    for(let i=0;i<8;i++)m.box(0,-2+i*.55,0,.8,.07,.07,K.fence);m.pop();
+  }else if(kind==="c"){
+    m.push([0,0,-2]);cabin(m,{W:12,D:4.6,H:2.4,rh:1.7,door:true});m.pop();
+    [-5.2,5.2].forEach(x=>{m.push([x,0,2.2],[0,Math.PI/2,0]);cabin(m,{W:4.4,D:3.4,H:2.4,rh:1.3,door:false,chimney:false,winSide:false});m.pop()});
+  }else{
+    const o={std:{},founder:{W:9.5,D:7,H:2.8,rh:2.3},big:{W:8.5,D:6.5,H:3.8,rh:2.6,gableWin:true},
+      cottage:{W:9,D:6.5,H:2.6,rh:2.8,gableWin:true},svet:{}}[kind]||{};
+    if(id==="H-000051")o.roundWin=true;
+    const top=cabin(m,o);
+    const W=o.W||8,D=o.D||6,rh=o.rh||2;
+    if(kind==="cottage"){ // крыльцо с навесом
+      m.box(0,.55,D/2+1.3,4,.15,2.2,K.log2);[[-1.8],[1.8]].forEach(([x])=>m.box(x,1.6,D/2+2.2,.16,2.1,.16,K.log));
+      m.box(0,2.75,D/2+1.35,4.4,.12,2.6,K.roof,[.25,0,0]);
+    }
+    if(kind==="svet"){m.push([0,top+rh*.55,0]);m.box(0,.8,0,2.2,1.6,2.2,K.log);m.box(0,.9,1.13,.9,.7,.06,K.win);
+      m.push([0,1.6,0]);m.tri([-1.1,0,-1.1],[-1.1,0,1.1],[-1.1,.9,0],K.log,[0,.4,0]);m.tri([1.1,0,-1.1],[1.1,0,1.1],[1.1,.9,0],K.log,[0,.4,0]);
+      [1,-1].forEach(s=>m.box(0,.48,s*.6,2.7,.1,1.6,K.roof,[s*.68,0,0]));m.pop();m.pop()}
+    if(kind==="big"&&id==="H-000007"){ // балкон
+      m.box(0,2.95,D/2+.8,3.4,.15,1.6,K.log2);
+      for(let i=-1.6;i<=1.61;i+=.4)m.box(i,3.4,D/2+1.55,.08,.8,.08,K.fence);m.box(0,3.8,D/2+1.55,3.4,.1,.1,K.fence);
+      m.box(0,3.6,D/2+.12,1,1.4,.12,K.door);
+    }
+    if(id==="H-000045")[[0,.4,.45],[.4,1.1,.6],[.2,2,.75]].forEach(([dx,dy,r])=>m.ball(W*.25+dx,top+rh*1.4+.9+dy,-D*.18,r,"#d9d6cf"));
+    if(id==="H-000042"){m.box(W*.42,top+rh+.8,0,.06,1.3,.06,"#333");
+      m.push([W*.42,top+rh+1.45,0]);m.box(0,0,0,.16,.3,.12,"#222");
+      [1,-1].forEach(s=>{m.tri([0,.1,0],[s*.7,.25,0],[s*.55,-.1,0],"#222",[0,0,1]);m.tri([0,.1,0],[s*.55,-.1,0],[s*.25,-.05,0],"#222",[0,0,1])});
+      m.box(0,.2,0,.12,.1,.1,"#222");m.pop()}
+    if(id==="H-000051"){m.push([-W*.3,top+rh+.15,0]);m.ball(0,.35,0,.32,"#8a6a48",1.2);m.ball(0,.82,0,.24,"#9a7a56");
+      m.ball(-.1,.86,.2,.07,"#f2c14e");m.ball(.1,.86,.2,.07,"#f2c14e");m.pop()}
+    if(id==="H-000003"){m.box(W/2+1.2,2.5,D/2+1,.1,5,.1,"#ccc");
+      [["#d90012",0],["#0033a0",1],["#f2a800",2]].forEach(([c,i])=>m.box(W/2+1.95,4.6-i*.35,D/2+1,1.4,.35,.04,c))}
+    if(id==="H-000002"){m.box(0,.55,D/2+1.6,W+.6,.15,3,K.log2);
+      for(let i=-W/2-.2;i<=W/2+.21;i+=.7){m.box(i,1.05,D/2+3,.08,.9,.08,K.fence)}m.box(0,1.5,D/2+3,W+.6,.1,.1,K.fence)}
+    if(id==="H-000008"){m.push([W/2+1,.5,1]);[-.42,.42].forEach(z=>m.box(0,0,z,1.6,.08,.8,K.door,[0,0,.45]));m.pop()}
+    if(id==="H-000031")for(let i=0;i<9;i++)m.ball(-W/2+.6+i*(W-1.2)/8,.55,D/2+1.4+(i%2)*.4,.48,["#7d8fd6","#c993d6","#e9a3c9"][i%3]);
+    if(id==="H-000014"||id==="H-000040")gazebo(m,6.8,4.5);
+    if(id==="H-000007"){hitch(m,-6.8,5,0);horse(m,-6.8,4.1,0,"#262321","#111")}
+    if(id==="H-000011"){stable(m,-7.5,-4,Math.PI/2,4.5);
+      for(let x=-9.8;x<=-4.2;x+=1.4)[[x,1],[x,8.6]].forEach(([a,b])=>m.box(a,.5,b,.12,1,.12,K.fence));
+      for(let z=1;z<=8.6;z+=1.9)[[-9.8,z],[-4.2,z]].forEach(([a,b])=>m.box(a,.5,b,.12,1,.12,K.fence));
+      [[-7,1],[-7,8.6]].forEach(([x,z])=>m.box(x,.8,z,5.6,.08,.08,K.fence));[[-9.8],[-4.2]].forEach(([x])=>m.box(x,.8,4.8,.08,.08,7.6,K.fence));
+      horse(m,-7,4.6,.6,"#7a4424")}
+    if(id==="H-000049"){stable(m,-7.5,-4,Math.PI/2,5.5);hitch(m,-7,5,0,4);horse(m,-7.9,4.1,0,"#7a4424");horse(m,-6,4.1,0,"#d8d0c2","#9a8f80")}
+    if(id==="H-000004"){m.push([7.5,0,7]);m.box(0,1.2,0,1.4,2.4,1.4,K.log2);m.box(0,2.6,0,1.9,.15,1.9,K.roof);m.box(0,1.3,.71,.7,.6,.04,"#f3d27a");m.pop()}
+  }
+    if(id==="H-000053"){m.push([-2.6,0,6.4]);m.box(0,.55,0,1.4,1.1,1.4,K.log2);[1,-1].forEach(s=>m.box(0,1.35,s*.4,1.6,.08,1,K.roof,[s*.7,0,0]));m.box(0,.4,.71,.6,.7,.05,"#2a2018");m.pop();
+      m.push([-.8,0,7.6],[0,.4,0]);m.box(0,.55,0,.9,.4,.35,"#9aa0a6");m.box(0,.48,0,.92,.28,.3,"#eceae6");
+      [[.32,.12],[.32,-.12],[-.32,.12],[-.32,-.12]].forEach(([a,b])=>m.box(a,.2,b,.1,.4,.1,"#eceae6"));
+      m.box(.55,.85,0,.38,.34,.3,"#9aa0a6");m.box(.78,.78,0,.2,.16,.18,"#eceae6");m.tri([.5,1,.1],[.62,1,.1],[.56,1.18,.1],"#9aa0a6",[.56,.9,0]);m.tri([.5,1,-.1],[.62,1,-.1],[.56,1.18,-.1],"#9aa0a6",[.56,.9,0]);
+      m.box(-.55,.75,0,.1,.1,.35,"#9aa0a6",[0,0,.8]);m.pop()}
+  // деревья по углам участка
+  tree(m,8.5,-8.5,.9);tree(m,-8.6,-8.2,.8);
+  return m;
+}
+
+/* ---------- WebGL ---------- */
+let gl,prog,buf,count=0,cv,raf,cam={yaw:-.7,pitch:.42,dist:30,ty:2.6},auto=true,lastT=0,target={...cam};
+function init(canvas){
+  cv=canvas;gl=cv.getContext("webgl",{antialias:true,alpha:true});
+  if(!gl)return false;
+  const vs=`attribute vec3 p;attribute vec3 n;attribute vec3 c;uniform mat4 mvp;varying vec3 vc;
+    void main(){vec3 L=normalize(vec3(.55,.8,.35));float d=max(dot(n,L),0.);float sky=.5+.5*n.y;
+    vc=c*(.42+.18*sky+.55*d);gl_Position=mvp*vec4(p,1.);}`;
+  const fs=`precision mediump float;varying vec3 vc;void main(){gl_FragColor=vec4(pow(vc,vec3(.95)),1.);}`;
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o};
+  prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);
+  buf={p:gl.createBuffer(),n:gl.createBuffer(),c:gl.createBuffer()};
+  gl.enable(gl.DEPTH_TEST);
+  // управление
+  const pts=new Map();let pd=0;
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);auto=false;
+    if(pts.size===2){const[a,b]=[...pts.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1])}});
+  cv.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;const o=pts.get(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts.size===1){target.yaw-=(e.clientX-o[0])*.008;target.pitch=Math.max(.08,Math.min(1.35,target.pitch+(e.clientY-o[1])*.006))}
+    else if(pts.size===2){const[a,b]=[...pts.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd){target.dist=Math.max(8,Math.min(60,target.dist*pd/d))}pd=d}});
+  const up=e=>{pts.delete(e.pointerId);pd=0};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+  cv.addEventListener("wheel",e=>{e.preventDefault();auto=false;target.dist=Math.max(8,Math.min(60,target.dist*Math.exp(e.deltaY*.0015)))},{passive:false});
+  return true;
+}
+function load(h){
+  const m=build(h);count=m.P.length/3;
+  const set=(b,a)=>{gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(a),gl.STATIC_DRAW)};
+  set(buf.p,m.P);set(buf.n,m.N);set(buf.c,m.C);
+  const big=h.kind==="tree"?1.25:h.kind==="c"?1.1:1;
+  cam={yaw:-1.2,pitch:.5,dist:40*big,ty:h.kind==="tree"?5.5:2.2};target={...cam,yaw:-.6,dist:28*big};auto=true;
+}
+function persp(f,a,n,fa){const t=1/Math.tan(f/2);return[t/a,0,0,0,0,t,0,0,0,0,(fa+n)/(n-fa),-1,0,0,2*fa*n/(n-fa),0]}
+function look(e,c){const z=nrm(sub(e,c)),x=nrm(cross([0,1,0],z)),y=cross(z,x);
+  return[x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,e),-dot(y,e),-dot(z,e),1]}
+function mul(a,b){const r=new Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];r[i*4+j]=s}return r}
+function frame(t){
+  raf=requestAnimationFrame(frame);
+  const dt=Math.min(.05,(t-(lastT||t))/1000);lastT=t;
+  if(auto)target.yaw+=dt*.25;
+  for(const k of["yaw","pitch","dist"])cam[k]+=(target[k]-cam[k])*Math.min(1,dt*7);
+  const dpr=Math.min(2,devicePixelRatio||1),w=cv.clientWidth*dpr|0,h=cv.clientHeight*dpr|0;
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
+  gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  const D=cam.dist*Math.max(1,.85/(w/h));
+  const e=[Math.sin(cam.yaw)*Math.cos(cam.pitch)*D,cam.ty+Math.sin(cam.pitch)*D,Math.cos(cam.yaw)*Math.cos(cam.pitch)*D];
+  const mvp=mul(persp(.75,w/h,.5,200),look(e,[0,cam.ty,0]));
+  gl.useProgram(prog);
+  gl.uniformMatrix4fv(gl.getUniformLocation(prog,"mvp"),false,new Float32Array(mvp));
+  [["p",buf.p],["n",buf.n],["c",buf.c]].forEach(([a,b])=>{const l=gl.getAttribLocation(prog,a);gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,3,gl.FLOAT,false,0,0)});
+  gl.drawArrays(gl.TRIANGLES,0,count);
+}
+let ready=false;
+return{
+  open(canvas,h){if(!ready){ready=init(canvas);if(!ready)return false}load(h);cancelAnimationFrame(raf);lastT=0;raf=requestAnimationFrame(frame);return true},
+  close(){cancelAnimationFrame(raf)}
+};
+})();
+
+</script>
+<script>
+(()=>{
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("map");
+const TH=-1.8*Math.PI/180, C=Math.cos(TH), S=Math.sin(TH);
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const X=x=>x, Y=y=>-y;  // мир → схема (север вверху)
+
+// ---------- позиции домов ----------
+function plotPos(q,p){
+  const [cx,cy]=CITY.quarters[q];
+  const col=(p-1)%3, top=p<=3;
+  const dx=(col-1)*22, dy=top?9:-9;
+  return [cx+dx*C-dy*S, cy+dx*S+dy*C, top];
+}
+const houses=CITY.residents.map(r=>{
+  const [nick,id,q,p,date,feat]=r;
+  let x,y,top=true;
+  if(q===0){[x,y]=CITY.founder}else{[x,y,top]=plotPos(q,p)}
+  return {nick,id,q,p,date,feat,x,y,top,key:nick.replace(/^@/,"").toLowerCase(),num:parseInt(id.slice(2),10)};
+});
+
+// ---------- рисуем мир ----------
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const defs=el("defs",{},svg);
+defs.innerHTML=`
+ <pattern id="grass" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="14" height="14" fill="#a3ba78"/><circle cx="3" cy="4" r=".7" fill="#97ae6c"/><circle cx="10" cy="10" r=".6" fill="#b0c486"/></pattern>
+ <pattern id="field" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#c9b36a"/><rect width="4" height="1.6" fill="#9caa52"/></pattern>
+ <pattern id="field2" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(90)"><rect width="4" height="4" fill="#b9a160"/><rect width="4" height="1.6" fill="#7f9a46"/></pattern>
+ <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb0c4"/><stop offset="1" stop-color="#5f93ab"/></linearGradient>
+ <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0.8" stdDeviation="0.7" flood-color="#2b2010" flood-opacity=".35"/></filter>
+ <filter id="tsh" x="-20%" y="-40%" width="140%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#000" flood-opacity=".25"/></filter>`;
+
+const world=el("g",{},svg);
+const W0=-260,W1=300,N0=-150,N1=320; // схема: x, y(вниз)
+el("rect",{x:W0,y:N0,width:W1-W0,height:N1-N0,fill:"url(#grass)"},world);
+
+// река
+(function(){
+  const pts=[];for(let x=W0;x<=W1;x+=20){pts.push([x,45+Math.sin(x/70)*7+Math.sin(x/23)*2])}
+  const top=pts.map(([x,y])=>[x,Y(y+14)]), bot=pts.map(([x,y])=>[x,Y(y-13)]).reverse();
+  const d="M"+top.concat(bot).map(p=>p.join(",")).join("L")+"Z";
+  el("path",{d,fill:"#c9bd8f"},world).setAttribute("transform","translate(0,0)");
+  const bank=top.map(p=>[p[0],p[1]-3]).concat(bot.map(p=>[p[0],p[1]+3]));
+  el("path",{d:"M"+bank.map(p=>p.join(",")).join("L")+"Z",fill:"#cdbf91"},world);
+  el("path",{d,fill:"url(#water)"},world);
+  const mid=pts.map(([x,y])=>[x,Y(y)]);
+  el("path",{d:"M"+mid.map(p=>p.join(",")).join("L"),fill:"none",stroke:"rgba(255,255,255,.25)","stroke-width":1.2,"stroke-dasharray":"8 14"},world);
+  const t=el("text",{x:-150,y:Y(46)+1.5,class:"qlabel",fill:"rgba(255,255,255,.7)",style:"font-size:7px;fill:rgba(255,255,255,.75)"},world);t.textContent="РЕКА";
+})();
+
+// леса
+const trees=el("g",{},world);
+function tree(x,y,r){
+  el("circle",{cx:x,cy:y+r*.35,r:r,fill:"rgba(40,50,20,.25)"},trees);
+  el("circle",{cx:x,cy:y,r:r,fill:rnd()<.5?"#5f8248":"#6b8f4f"},trees);
+  el("circle",{cx:x-r*.3,cy:y-r*.3,r:r*.45,fill:"rgba(255,255,255,.12)"},trees);
+}
+function forest(cx,cy,rx,ry,n,avoid){
+  for(let i=0;i<n;i++){
+    const a=rnd()*Math.PI*2, d=Math.sqrt(rnd());
+    const x=cx+Math.cos(a)*rx*d, y=cy+Math.sin(a)*ry*d;
+    if(avoid&&avoid(x,y))continue;
+    tree(x,y,2.6+rnd()*2.2);
+  }
+}
+const inTown=(x,y)=>x>-115&&x<115&&y>40&&y<260; // схема
+forest(-30,-115,260,32,520);            // за рекой
+forest(-215,120,45,130,260,inTown);      // запад
+forest(250,90,40,140,240,inTown);        // восток
+forest(0,290,260,26,300);                // юг
+forest(CITY.grove[0],Y(CITY.grove[1]),CITY.grove[2],CITY.grove[2],70); // восточная роща
+for(let i=0;i<40;i++){const x=W0+rnd()*(W1-W0),y=10+rnd()*270;if(!inTown(x,y)&&!(Math.hypot(x-152,y-118)<30))tree(x,y,2+rnd()*1.5)}
+
+// дороги
+const roads=el("g",{},world);
+const road=(x1,y1,x2,y2,w,c="#cdb88d")=>el("line",{x1,y1:Y(y1),x2,y2:Y(y2),stroke:c,"stroke-width":w,"stroke-linecap":"round"},roads);
+road(W0,CITY.roadY,W1,CITY.roadY,7,"#bfa77a");
+road(W0,CITY.roadY,W1,CITY.roadY,5.4);
+road(0,CITY.roadY,0,CITY.founder[1]-4,4.4,"#bfa77a");road(0,CITY.roadY,0,CITY.founder[1]-4,3.2);
+// улицы сетки кварталов
+const ug=el("g",{transform:`rotate(1.8 0 ${Y(-148)})`},roads);
+[-108,-36,36,108].forEach(x=>el("line",{x1:x,y1:Y(-49),x2:x,y2:Y(-249),stroke:"#cdb88d","stroke-width":4},ug));
+[-98,-148,-198,-248].forEach(y=>el("line",{x1:-108,y1:Y(y),x2:108,y2:Y(y),stroke:"#cdb88d","stroke-width":4},ug));
+
+// кварталы
+const qg=el("g",{},world);
+for(const [q,[cx,cy]] of Object.entries(CITY.quarters)){
+  const g=el("g",{transform:`rotate(1.8 ${cx} ${Y(cy)})`},qg);
+  el("rect",{x:cx-33,y:Y(cy)-22,width:66,height:44,rx:1.5,fill:"#b3c484"},g);
+  for(let p=1;p<=6;p++){
+    const col=(p-1)%3, top=p<=3, px=cx-33+col*22, py=Y(cy)+(top?-22:0);
+    el("rect",{x:px+.6,y:py+.6,width:20.8,height:20.8,fill:"none",stroke:"rgba(110,90,50,.35)","stroke-width":.4,"stroke-dasharray":"1.2 1"},g);
+    // огород внутрь квартала
+    const gy=top?py+17.3:py+0.9;
+    el("rect",{x:px+5,y:gy,width:12,height:3.8,rx:.6,fill:"#8a7346"},g);
+    for(let k=0;k<3;k++)el("line",{x1:px+6,x2:px+16,y1:gy+.8+k*1.1,y2:gy+.8+k*1.1,stroke:"#7a9a44","stroke-width":.5},g);
+  }
+  const t=el("text",{x:cx,y:Y(cy)+2.8,"text-anchor":"middle",class:"qlabel qnum"},qg);t.textContent="КВ. "+q;
+}
+
+// ферма
+(function(){
+  const [cx,cy]=CITY.farm, g=el("g",{transform:`rotate(1.8 ${cx} ${Y(cy)})`},world);
+  el("rect",{x:cx-33,y:Y(cy)-22,width:30,height:44,fill:"url(#field)",rx:1},g);
+  el("rect",{x:cx+1,y:Y(cy)-22,width:32,height:20,fill:"url(#field2)",rx:1},g);
+  el("rect",{x:cx+1,y:Y(cy)+2,width:32,height:20,fill:"url(#field)",rx:1},g);
+  el("rect",{x:cx+8,y:Y(cy)-6,width:14,height:10,fill:"#8b5a36",filter:"url(#sh)"},g);
+  el("line",{x1:cx+8,x2:cx+22,y1:Y(cy)-1,y2:Y(cy)-1,stroke:"#6e4428","stroke-width":.8},g);
+  const t=el("text",{x:cx,y:Y(cy)+26.5,"text-anchor":"middle",class:"qlabel"},world);t.textContent="ФЕРМА";
+})();
+
+// колодец и дозор
+(function(){
+  const [wx,wy]=CITY.well;
+  el("circle",{cx:wx+5,cy:Y(wy)+5,r:2.6,fill:"#8d8a80",filter:"url(#sh)"},world);
+  el("circle",{cx:wx+5,cy:Y(wy)+5,r:1.5,fill:"#4f7d93"},world);
+  const t=el("text",{x:wx+9,y:Y(wy)+6,class:"qlabel",style:"font-size:5px"},world);t.textContent="колодец";
+  const [bx,by]=CITY.watch;
+  el("rect",{x:bx-2,y:Y(by)-2,width:4,height:4,fill:"#7a4f2f",filter:"url(#sh)"},world);
+  el("circle",{cx:bx,cy:Y(by),r:.9,fill:"#ffd77a"},world);
+})();
+
+// свободные участки
+const freeG=el("g",{},world);
+CITY.freePlots.forEach(([q,p])=>{
+  const [x,y]=plotPos(q,p);
+  const r=el("rect",{x:x-6,y:Y(y)-5,width:12,height:10,rx:1.5,fill:"rgba(255,255,255,.35)",stroke:"#fff","stroke-width":.7,"stroke-dasharray":"1.6 1.2",class:"house"},freeG);
+  const t=el("text",{x,y:Y(y)+2,"text-anchor":"middle",style:"font:800 6px Manrope;fill:#fff;pointer-events:none"},freeG);t.textContent="+";
+  r.__act=()=>showFree(q,p);
+});
+
+// постройки на выбор (призраки)
+const ghostG=el("g",{},world);
+const ghosts=(CITY.vote&&CITY.vote.options||[]).map(o=>{
+  const g=el("g",{class:"house ghost",transform:`translate(${X(o.x)} ${Y(o.y)}) rotate(1.8)`},ghostG);
+  const st={fill:"rgba(235,245,255,.32)",stroke:"rgba(255,255,255,.95)","stroke-width":.8,"stroke-dasharray":"2 1.4"};
+  if(o.shape==="market"){
+    for(let i=0;i<3;i++){el("rect",{x:-14+i*10,y:-6,width:8,height:5,rx:.5,...st},g);el("rect",{x:-14+i*10,y:2,width:8,height:5,rx:.5,...st},g)}
+  }else if(o.shape==="square"){
+    el("circle",{r:12,...st},g);el("circle",{r:3,...st},g);
+  }else{
+    el("rect",{x:-8,y:-5.5,width:16,height:11,rx:.6,...st},g);
+    el("line",{x1:-8,x2:8,y1:0,y2:0,stroke:"rgba(255,255,255,.9)","stroke-width":.6,"stroke-dasharray":"2 1.4"},g);
+  }
+  el("rect",{x:-15,y:-13,width:30,height:26,fill:"transparent"},g);
+  g.__act=()=>showGhost(o);
+  o.g=g;return o;
+});
+
+// дома
+const hg=el("g",{},world);
+const SPECIAL={ "H-000003":"cottage","H-000037":"cottage","H-000007":"big","H-000044":"big","H-000045":"big","H-000048":"big","H-000050":"big","H-000054":"big","H-000016":"c","H-000053":"c","H-000055":"tree","H-000047":"svet"};
+houses.forEach(h=>{
+  const g=el("g",{class:"house",transform:`translate(${X(h.x)} ${Y(h.y)}) rotate(1.8)`},hg);
+  const kind=h.q===0?"founder":(SPECIAL[h.id]||"std");h.kind=kind;
+  let w=9,d=7;
+  if(kind==="founder"){w=13;d=9}else if(kind==="big"){w=10.5;d=8}else if(kind==="cottage"){w=10;d=7.5}
+  if(kind==="tree"){
+    el("circle",{cx:0,cy:0,r:6.2,fill:"#567a40",filter:"url(#sh)"},g);
+    el("circle",{cx:-1.6,cy:-1.6,r:2.6,fill:"rgba(255,255,255,.12)"},g);
+    el("rect",{x:-3.2,y:-2.6,width:6.4,height:5.2,fill:"#9a6338",stroke:"#6e4428","stroke-width":.5},g);
+    el("line",{x1:-3.2,x2:3.2,y1:0,y2:0,stroke:"#6e4428","stroke-width":.6},g);
+  }else if(kind==="c"){
+    const p="M-7,-4 H7 V4 H4 V-1 H-4 V4 H-7 Z";
+    el("path",{d:p,fill:"#a2673d",filter:"url(#sh)"},g);
+    el("path",{d:"M-5.5,-2.5 H5.5",stroke:"#7a4a2a","stroke-width":.7},g);
+  }else{
+    el("rect",{x:-w/2,y:-d/2,width:w,height:d,rx:.4,fill:kind==="founder"?"#9a5e36":"#a2673d",filter:"url(#sh)"},g);
+    el("rect",{x:-w/2,y:h.top?-d/2:0,width:w,height:d/2,fill:"rgba(255,255,255,.13)"},g);
+    el("line",{x1:-w/2,x2:w/2,y1:0,y2:0,stroke:"#6f4426","stroke-width":.7},g);
+    el("rect",{x:w/2-2.4,y:-d/2+.8,width:1.4,height:1.4,fill:"#5d5850"},g); // труба
+    if(kind==="svet")el("rect",{x:-1.8,y:-1.8,width:3.6,height:3.6,fill:"#b9773f",stroke:"#6f4426","stroke-width":.5},g);
+  }
+  const hit=el("rect",{x:-8,y:-7,width:16,height:14,fill:"transparent"},g);
+  g.__act=()=>select(h,true);
+  h.g=g;
+});
+
+// таблички с никами (в экранном масштабе)
+const tagLayer=el("g",{},svg);
+houses.forEach(h=>{
+  const g=el("g",{class:"tag",filter:"url(#tsh)",style:"cursor:pointer"},tagLayer);
+  g.__act=()=>select(h,true);
+  const t=el("text",{x:0,y:-14,"text-anchor":"middle"},g);t.textContent=h.nick;
+  g.style.display="none";
+  h.tag=g;h.tagText=t;
+});
+ghosts.forEach(o=>{
+  const g=el("g",{class:"gtag",filter:"url(#tsh)",style:"cursor:pointer"},tagLayer);
+  const t=el("text",{x:9,y:-18,"text-anchor":"middle"},g);t.textContent=o.name+" · "+o.cost;
+  o.tag=g;o.tagText=t;
+  g.__act=()=>showGhost(o);
+});
+const selRing=el("circle",{r:11,fill:"none",stroke:"#fff","stroke-width":2,class:"pulse",style:"display:none"},world);
+function sizeTags(){
+  houses.forEach(h=>{
+    const bb=h.tagText.getBBox(), w=bb.width+14;
+    const r=el("rect",{x:-w/2,y:-28,width:w,height:20,rx:10},null);
+    h.tag.insertBefore(r,h.tagText);
+    el("path",{d:"M-5,-8.5 L0,-3 L5,-8.5 Z",fill:h===null?"":"#fff",class:"tail"},h.tag);
+    h.tagW=w;
+  });
+  ghosts.forEach(o=>{
+    const bb=o.tagText.getBBox(), w=bb.width+34;
+    const r=el("rect",{x:-w/2,y:-31,width:w,height:20,rx:10});o.tag.insertBefore(r,o.tagText);
+    o.tagText.setAttribute("x",9);
+    el("circle",{cx:-w/2+11,cy:-21,r:7.5},o.tag);
+    const n=el("text",{x:-w/2+11,y:-17,"text-anchor":"middle",class:"gn"},o.tag);n.textContent=o.n;
+  });
+}
+
+// ---------- камера ----------
+const HOME={x:-125,y:-30,w:300,h:300};
+let vb={...HOME};
+function fit(b){
+  const W=innerWidth,H=innerHeight,ar=W/H;
+  let w=b.w,h=b.h;if(w/h<ar)w=h*ar;else h=w/ar;
+  return {x:b.x+b.w/2-w/2,y:b.y+b.h/2-h/2,w,h};
+}
+function homeView(){
+  const W=innerWidth,H=innerHeight;
+  // весь жилой город + река, с запасом под панели
+  const b={x:-125,y:-40,w:290,h:330};
+  const f=fit(b);
+  if(W<H){ const k=1.02; return {x:f.x,y:f.y-f.h*0.04,w:f.w*k,h:f.h*k}; }
+  return f;
+}
+function apply(){
+  svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const k=vb.w/innerWidth; // единиц на пиксель
+  const showAll=k<0.2;
+  document.querySelectorAll(".qnum").forEach(t=>t.style.display=k<0.45?"none":"");
+  houses.forEach(h=>{
+    const on=showAll||h===sel;
+    h.tag.style.display=on?"":"none";
+    if(on)h.tag.setAttribute("transform",`translate(${X(h.x)} ${Y(h.y)-5}) scale(${k})`);
+  });
+  ghosts.forEach(o=>{const below=o.shape==="tavern";
+    o.tag.setAttribute("transform",`translate(${X(o.x)} ${Y(o.y)+(below?8:-(o.shape==="square"?10:5))}) scale(${Math.min(k,0.6)})${below?" translate(0 40)":""}${o.shape==="market"?" translate(-40 0)":""}`)});
+  if(sel){selRing.style.display="";selRing.setAttribute("cx",X(sel.x));selRing.setAttribute("cy",Y(sel.y))}
+  else selRing.style.display="none";
+}
+function zoomAt(f,px,py){
+  const r=svg.getBoundingClientRect();
+  const mx=vb.x+(px-r.left)/r.width*vb.w, my=vb.y+(py-r.top)/r.height*vb.h;
+  let w=vb.w*f;w=Math.max(28,Math.min(900,w));f=w/vb.w;
+  vb={x:mx-(mx-vb.x)*f,y:my-(my-vb.y)*f,w:vb.w*f,h:vb.h*f};apply();
+}
+let anim=null;
+function flyTo(t,ms=900){
+  cancelAnimationFrame(anim);const s={...vb},t0=performance.now();
+  const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+  const step=now=>{const u=Math.min(1,(now-t0)/ms),e=ease(u);
+    // лёгкий «подлёт»: сначала чуть отдаляемся
+    const lift=Math.sin(Math.PI*u)*0.25*Math.max(0,Math.log(s.w/t.w));
+    const w=(s.w+(t.w-s.w)*e)*(1+lift), h=(s.h+(t.h-s.h)*e)*(1+lift);
+    const cx=s.x+s.w/2+((t.x+t.w/2)-(s.x+s.w/2))*e, cy=s.y+s.h/2+((t.y+t.h/2)-(s.y+s.h/2))*e;
+    vb={x:cx-w/2,y:cy-h/2,w,h};apply();if(u<1)anim=requestAnimationFrame(step)};
+  anim=requestAnimationFrame(step);
+}
+function viewOn(x,y,w){
+  const ar=innerWidth/innerHeight, h=w/ar;
+  const mobile=innerWidth<760;
+  const oy=mobile?h*0.12:0, ox=mobile?0:-w*0.12; // освобождаем место под карточку
+  return {x:X(x)-w/2+ox,y:Y(y)-h/2+oy,w,h};
+}
+
+// жесты
+const pts=new Map();let moved=false,last=null,pinch0=null,down=null;
+svg.addEventListener("pointerdown",e=>{svg.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pts.size===1){moved=false;down=[e.clientX,e.clientY]}else moved=true;cancelAnimationFrame(anim);
+  if(pts.size===2){const [a,b]=[...pts.values()];pinch0={d:Math.hypot(a[0]-b[0],a[1]-b[1]),vb:{...vb},c:[(a[0]+b[0])/2,(a[1]+b[1])/2]}}
+  svg.classList.add("drag")});
+svg.addEventListener("pointermove",e=>{
+  if(!pts.has(e.pointerId))return;const p=pts.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];
+  pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pts.size===1){if(down&&Math.hypot(e.clientX-down[0],e.clientY-down[1])>8)moved=true;if(!moved)return;const k=vb.w/svg.getBoundingClientRect().width;vb.x-=dx*k;vb.y-=dy*k;apply()}
+  else if(pts.size===2&&pinch0){moved=true;const [a,b]=[...pts.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+    const c=[(a[0]+b[0])/2,(a[1]+b[1])/2];vb={...pinch0.vb};const r=svg.getBoundingClientRect();
+    const k=vb.w/r.width;vb.x-=(c[0]-pinch0.c[0])*k;vb.y-=(c[1]-pinch0.c[1])*k;zoomAt(pinch0.d/d,c[0],c[1])}
+});
+function tapAt(x,y){
+  let t=document.elementFromPoint(x,y);
+  while(t&&t!==svg&&!t.__act)t=t.parentNode;
+  if(t&&t.__act)t.__act();else closeCard();
+}
+const up=e=>{const tap=e.type==="pointerup"&&pts.size===1&&!moved;pts.delete(e.pointerId);if(pts.size<2)pinch0=null;if(!pts.size)svg.classList.remove("drag");
+  if(tap){try{svg.releasePointerCapture(e.pointerId)}catch(_){}tapAt(e.clientX,e.clientY)}};
+svg.addEventListener("pointerup",up);svg.addEventListener("pointercancel",up);
+svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(Math.exp(e.deltaY*0.0016),e.clientX,e.clientY)},{passive:false});
+
+document.getElementById("zin").onclick=()=>zoomAt(1/1.6,innerWidth/2,innerHeight/2);
+document.getElementById("zout").onclick=()=>zoomAt(1.6,innerWidth/2,innerHeight/2);
+document.getElementById("zall").onclick=()=>{closeCard();flyTo(homeView())};
+
+// ---------- карточка ----------
+let sel=null;
+const card=document.getElementById("card");
+const months=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const fmtDate=s=>{const [y,m,d]=s.split("-").map(Number);return `${d} ${months[m-1]} ${y}`};
+function openCard(){card.classList.add("show");document.body.classList.add("carded");
+  requestAnimationFrame(()=>document.body.style.setProperty("--cardh",card.offsetHeight+"px"))}
+function select(h,fly){
+  if(sel)sel.tag.classList.remove("sel");
+  sel=h;h.tag.classList.add("sel");
+  // поднимаем табличку наверх
+  tagLayer.appendChild(h.tag);
+  document.getElementById("cHid").textContent="ДОМ №"+h.num;
+  document.getElementById("cNick").textContent=h.nick;
+  document.getElementById("cFeat").textContent=h.feat;
+  const m=document.getElementById("cMeta");m.innerHTML="";
+  const add=t=>{const s=document.createElement("span");s.textContent=t;m.appendChild(s)};
+  add(h.q===0?"У реки":"Квартал "+h.q+", участок "+h.p);
+  add("Житель с "+fmtDate(h.date));
+  document.getElementById("cFree").hidden=true;
+  document.getElementById("c3d").hidden=false;
+  openCard();
+  if(fly)flyTo(viewOn(h.x,h.y,90));else apply();
+  try{history.replaceState(null,"","#dom-"+h.num)}catch(e){}
+}
+function showFree(q,p){
+  if(sel){sel.tag.classList.remove("sel");sel=null}
+  const [x,y]=plotPos(q,p);
+  document.getElementById("cHid").textContent="СВОБОДНЫЙ УЧАСТОК";
+  document.getElementById("cNick").textContent="Здесь может быть твой дом";
+  document.getElementById("cFeat").textContent="Подпишись и напиши «Хочу в город», и новый дом появится в следующем ролике.";
+  const m=document.getElementById("cMeta");m.innerHTML="";
+  const s=document.createElement("span");s.textContent="Квартал "+q+", участок "+p;m.appendChild(s);
+  document.getElementById("cFree").hidden=false;
+  document.getElementById("c3d").hidden=true;
+  openCard();flyTo(viewOn(x,y,110));
+}
+function showGhost(o){
+  if(sel){sel.tag.classList.remove("sel");sel=null}
+  document.getElementById("cHid").textContent="ПОСТРОЙКА НА ВЫБОР · ВАРИАНТ "+o.n;
+  document.getElementById("cNick").textContent=o.name;
+  document.getElementById("cFeat").textContent=o.text+" Голосуй в комментариях под последним роликом: напиши «"+o.n+"».";
+  const m=document.getElementById("cMeta");m.innerHTML="";
+  const add=t=>{const s=document.createElement("span");s.textContent=t;m.appendChild(s)};
+  document.getElementById("c3d").hidden=true;
+  add("Сила: "+o.cost);add(o.workers===1?"1 работник":o.workers+" "+(o.workers<5?"работника":"работников"));
+  document.getElementById("cFree").hidden=true;
+  openCard();flyTo(viewOn(o.x,o.y,110));
+}
+function closeCard(){
+  if(!card.classList.contains("show"))return;
+  card.classList.remove("show");document.body.classList.remove("carded");
+  if(sel){sel.tag.classList.remove("sel");sel=null;apply()}
+  try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}
+}
+document.getElementById("cardX").onclick=closeCard;
+
+// ---------- поиск ----------
+const q=document.getElementById("q"),sugg=document.getElementById("sugg"),clr=document.getElementById("clr");
+let hits=[],hi=0;
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function norm(s){return s.trim().toLowerCase().replace(/^@+/,"").replace(/\s+/g,"")}
+function find(s){
+  const n=norm(s);if(!n)return [];
+  const num=n.match(/^(?:h-?|дом)?0*(\d{1,6})$/);
+  let res=[];
+  if(num){const h=houses.find(h=>h.num===+num[1]);if(h)res.push(h)}
+  const starts=houses.filter(h=>h.key.startsWith(n)&&!res.includes(h));
+  const inc=houses.filter(h=>!h.key.startsWith(n)&&h.key.includes(n)&&!res.includes(h));
+  res=res.concat(starts,inc);
+  if(!res.length&&n.length>=3){ // мягкий поиск: опечатки, точки и подчёркивания
+    const strip=x=>x.replace(/[._\-]/g,"");const ns=strip(n);
+    res=houses.map(h=>[h,lev(strip(h.key).slice(0,Math.max(ns.length,4)+1),ns)]).filter(([,d])=>d<=Math.max(1,Math.floor(ns.length/4))).sort((a,b)=>a[1]-b[1]).map(([h])=>h);
+  }
+  return res.slice(0,8);
+}
+function lev(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i]);for(let j=1;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n]}
+function hl(nick,n){const i=nick.toLowerCase().indexOf(n);if(i<0||!n)return esc(nick);return esc(nick.slice(0,i))+"<mark>"+esc(nick.slice(i,i+n.length))+"</mark>"+esc(nick.slice(i+n.length))}
+function render(){
+  const v=q.value;clr.style.display=v?"block":"none";
+  if(!norm(v)){sugg.style.display="none";return}
+  hits=find(v);hi=0;
+  if(!hits.length){sugg.innerHTML=`<div class="none">Такого жителя пока нет. Проверь ник: он должен совпадать с Instagram.<br><br><button class="btn" data-join style="height:38px">Как получить дом</button></div>`;}
+  else{const n=norm(v);sugg.innerHTML=hits.map((h,i)=>`<button data-i="${i}" class="${i===0?"on":""}"><span>${hl(h.nick,n)}</span><small>№${h.num}</small></button>`).join("")}
+  sugg.style.display="block";
+}
+function pick(h){q.value=h.nick;sugg.style.display="none";q.blur();clr.style.display="block";select(h,true)}
+q.addEventListener("input",render);
+q.addEventListener("focus",render);
+q.addEventListener("keydown",e=>{
+  const bs=[...sugg.querySelectorAll("button[data-i]")];
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!bs.length)return;hi=(hi+(e.key==="ArrowDown"?1:-1)+bs.length)%bs.length;bs.forEach((b,i)=>b.classList.toggle("on",i===hi))}
+  else if(e.key==="Enter"){e.preventDefault();if(hits[hi])pick(hits[hi])}
+  else if(e.key==="Escape"){sugg.style.display="none";q.blur()}
+});
+sugg.addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(b)pick(hits[+b.dataset.i])});
+document.addEventListener("pointerdown",e=>{if(!e.target.closest(".search"))sugg.style.display="none"});
+clr.onclick=()=>{q.value="";render();q.focus()};
+
+// ---------- 3D ----------
+const v3=document.getElementById("v3d");
+document.getElementById("c3d").onclick=()=>{if(!sel)return;
+  document.getElementById("v3id").textContent="ДОМ №"+sel.num;document.getElementById("v3nick").textContent=sel.nick;
+  v3.classList.add("show");
+  if(!House3D.open(document.getElementById("cv3d"),sel)){v3.classList.remove("show")}};
+document.getElementById("v3x").onclick=()=>{v3.classList.remove("show");House3D.close()};
+addEventListener("keydown",e=>{if(e.key==="Escape"&&v3.classList.contains("show")){v3.classList.remove("show");House3D.close()}});
+
+// ---------- «хочу дом» ----------
+const modal=document.getElementById("modal");
+document.getElementById("igLink").href=CITY.instagram;
+document.addEventListener("click",e=>{if(e.target.closest("[data-join]")){sugg.style.display="none";modal.classList.add("show")}});
+document.getElementById("modalX").onclick=()=>modal.classList.remove("show");
+modal.addEventListener("click",e=>{if(e.target===modal)modal.classList.remove("show")});
+
+// ---------- счётчики ----------
+function count(id,to,fmt){const e=document.getElementById(id),t0=performance.now();
+  const f=n=>{const u=Math.min(1,(n-t0)/1200),v=Math.round(to*(1-Math.pow(1-u,3)));e.textContent=fmt(v);if(u<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
+count("stRes",houses.length,v=>v);
+count("stPow",CITY.power.free,v=>v+"/"+CITY.power.total);
+
+// ---------- старт ----------
+sizeTags();
+vb=homeView();apply();
+addEventListener("resize",()=>apply());
+const fromHash=()=>{const t=location.hash.slice(1).toLowerCase();const m=t.match(/^(?:dom-|h-0*)(\d+)$/);const h=m&&houses.find(h=>h.num===+m[1]);if(h){q.value=h.nick;clr.style.display="block";select(h,true)}};
+setTimeout(fromHash,300);
+addEventListener("hashchange",fromHash);
+})();
+</script>
+</body>
+</html>
