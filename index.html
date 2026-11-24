@@ -156,7 +156,7 @@
   <button id="zall" aria-label="Весь город" style="font-size:16px">⌂</button>
 </div>
 <div class="cta"><button class="btn" data-join>Хочу свой дом</button></div>
-<div class="note">Схема города · данные на 22.11.2026</div>
+<div class="note" id="note">Схема города</div>
 
 <div class="v3d" id="v3d">
   <canvas id="cv3d"></canvas>
@@ -183,14 +183,16 @@
    Обновляются после каждого заселения (источник — реестр жителей).
    q — квартал, p — участок (1–3 верхний ряд с запада на восток, 4–6 нижний). */
 const CITY = {
-  updated: "22.11.2026",
-  power: { free: 50, total: 63,
-    jobs: [ ["Ферма", 12, "работников в поле"], ["Ночной дозор", 1, "дозорный"] ] },
+  updated: "24.11.2026",
+  power: { free: 51, total: 72,
+    jobs: [ ["Ферма", 12, "работников в поле"], ["Рынок", 8, "продавцов за прилавками"], ["Ночной дозор", 1, "дозорный"] ] },
   /* Построенные общественные здания (нажатием — карточка и 3D) */
   buildings: [
     {key:"farm", name:"Ферма", text:"Поля, грядки и амбар для урожая. Жители выбрали её в голосовании.", meta:["12 работников постоянно"]},
     {key:"well", name:"Колодец", text:"Первая общая постройка города, у развилки главной дороги.", meta:["Построен жителями"]},
-    {key:"watch", name:"Ночной дозор", text:"Будка с фонарём. Дозорный каждую ночь охраняет город.", meta:["1 дозорный постоянно"]}
+    {key:"watch", name:"Ночной дозор", text:"Будка с фонарём. Дозорный каждую ночь охраняет город.", meta:["1 дозорный постоянно"]},
+    {key:"market", name:"Рынок", text:"Большой рынок у реки: прилавки под навесами по кругу. Жители выбрали его в голосовании.", meta:["8 работников постоянно"]},
+    {key:"palisade", name:"Частокол", text:"Стена из брёвен вокруг всего города, с воротами на главной дороге. Растёт вместе с городом.", meta:["Без постоянных работников"]}
   ],
   instagram: "https://www.instagram.com/mir_svoih/",
   residents: [
@@ -200,7 +202,7 @@ const CITY = {
     ["@alexgalkinvb","H-000004",1,3,"2026-11-18","Дом, отмытый после пожара. Рядом будка ночного дозора"],
     ["@ilya.vlasenko","H-000005",1,4,"2026-11-18","Обычный дом"],
     ["@n_n_ukh","H-000006",1,5,"2026-11-18","Обычный дом"],
-    ["@_helen.le_","H-000007",1,6,"2026-11-18","Большой дом с балконом и чёрная лошадь во дворе"],
+    ["@_helen.le_","H-000007",1,6,"2026-11-18","Большой дом с балконом и чёрная лошадь во дворе. Автор идеи «Виноградник»"],
     ["@_oehwsube_","H-000008",2,1,"2026-11-18","Дом со створками спуска в подвал"],
     ["@aleksandr_kpd","H-000009",2,2,"2026-11-18","Обычный дом"],
     ["@vasichev.nikolai","H-000010",2,3,"2026-11-20","Обычный дом"],
@@ -228,7 +230,7 @@ const CITY = {
     ["@mega_moz_leo","H-000032",6,1,"2026-11-20","Обычный дом"],
     ["@kapitulailla100","H-000033",6,2,"2026-11-20","Обычный дом"],
     ["@nikita777_4343","H-000034",2,6,"2026-11-20","Обычный дом"],
-    ["@st.cartter","H-000035",7,5,"2026-11-22","Обычный дом. Ждал его с самого первого ролика"],
+    ["@st.cartter","H-000035",7,5,"2026-11-22","Обычный дом. Ждал его с самого первого ролика. Автор идеи «Дом культуры»"],
     ["@a_pennywise","H-000036",7,4,"2026-11-22","Обычный дом"],
     ["@eldxww","H-000037",7,6,"2026-11-22","Коттедж"],
     ["@daler_0948","H-000038",6,3,"2026-11-22","Обычный дом"],
@@ -256,32 +258,37 @@ const CITY = {
     ["@rizhyivim2","H-000060",8,3,"2026-11-22","Обычный дом"],
     ["@vietamerney","H-000061",8,4,"2026-11-22","Обычный дом"],
     ["@ol_esia3381","H-000062",8,5,"2026-11-22","Обычный дом"],
-    ["@arm.poghos1ann.01","H-000063",8,6,"2026-11-22","Обычный дом"]
+    ["@arm.poghos1ann.01","H-000063",8,6,"2026-11-22","Обычный дом"],
+    // REEL-006: +9 жителей (квартал 12 — к югу от главной дороги, у восточной стены)
+    ["@erass_dtdt","H-000064",12,1,"2026-11-23","Обычный дом"],
+    ["@kuba.tm","H-000065",12,2,"2026-11-23","Обычный дом"],
+    ["@george_the_teacher_napp","H-000066",12,3,"2026-11-23","Обычный дом. Автор идеи «Силовой двор»"],
+    ["@nariman_ernisov","H-000067",12,4,"2026-11-23","Обычный дом. Хотел стать участковым села"],
+    ["@uzkrvx","H-000068",12,5,"2026-11-23","Обычный дом"],
+    ["@denis_condy","H-000069",7,1,"2026-11-23","Обычный дом"],
+    ["@artem_24022","H-000070",7,2,"2026-11-23","Обычный дом. Автор идеи «Кондитерская»"],
+    ["@isma1ilov_12","H-000071",11,5,"2026-11-23","Обычный дом"],
+    ["@syxarik800","H-000072",12,6,"2026-11-23","Обычный дом"]
   ],
-  quarters: {1:[0,-73],2:[0,-123],3:[-72,-123],4:[72,-123],5:[0,-173],6:[-72,-173],7:[-72,-73],8:[72,-173],9:[0,-223],10:[-72,-223],11:[72,-223]},
-  freePlots: [[11,5],[11,6]],
-  /* Постройки на выбор — текущее голосование (REEL-005). Места — как в ролике. */
-  /* Текущие голосования. Голосуют НАЗВАНИЯМИ (без цифр): «напиши, что выбираешь и почему». */
+  quarters: {1:[0,-73],2:[0,-123],3:[-72,-123],4:[72,-123],5:[0,-173],6:[-72,-173],7:[-72,-73],8:[72,-173],9:[0,-223],10:[-72,-223],11:[72,-223],12:[144,-173]},
+  freePlots: [[11,6]],
+  /* Текущее голосование (REEL-006, «Жители просят»). Голосуют НАЗВАНИЯМИ: «напиши, что выбираешь и почему».
+     road — будущая дорога к общей сети (пунктиром). author — чья идея. */
   vote: {
     options: [
-      // REEL-005: где жителям встречаться?
-      {q:"Где жителям встречаться?", name:"Торговые ряды", x:-40, y:-12, cost:38, workers:8, shape:"market",
-       text:"Ряды лавок под навесами: здесь жители будут торговать и встречаться."},
-      {q:"Где жителям встречаться?", name:"Деревенская площадь", x:36, y:-12, cost:49, workers:1, shape:"square",
-       text:"Площадь для праздников и сборов. Почти вся сила города, зато работает один смотритель."},
-      {q:"Где жителям встречаться?", name:"Трактир", x:66, y:-16, cost:38, workers:3, shape:"tavern",
-       text:"Тёплый трактир у дороги, где по вечерам собирается весь город."},
-      // EVENT-01 «Незваные гости»: как защитим город?
-      {q:"Как защитим город?", name:"Частокол", x:0, y:-262, cost:20, workers:0, shape:"palisade", view:[0,-120,330],
-       text:"Стена из брёвен вокруг всего поселения и двое ворот на главной дороге. Звери больше не пройдут."},
-      {q:"Как защитим город?", name:"Ополчение", x:114, y:-82, cost:15, workers:10, shape:"militia",
-       text:"Пост у полей: вышка, навес и костёр. Десять жителей охраняют поля каждую ночь."},
-      {q:"Как защитим город?", name:"Лекарь", x:-14, y:-20, cost:26, workers:2, shape:"healer",
-       text:"Изба лекаря с травами у колодца. Город будет готов к болезням — крысы ведь никуда не денутся."}
+      {q:"Что строим дальше? Жители просят", name:"Виноградник", author:"@_helen.le_", x:-150, y:-140, cost:29, workers:5, shape:"vineyard",
+       road:[[-150,-140],[-108,-140]], text:"Ряды лоз на шпалерах и давильня. Домашнее вино из своего винограда."},
+      {q:"Что строим дальше? Жители просят", name:"Кондитерская", author:"@artem_24022", x:-80, y:-282, cost:29, workers:5, shape:"bakery",
+       road:[[-80,-282],[-80,-249]], text:"Пекарня с большой печью: горячие булочки прямо из печи на рассвете."},
+      {q:"Что строим дальше? Жители просят", name:"Дом культуры", author:"@st.cartter", x:0, y:-280, cost:29, workers:1, shape:"culture",
+       road:[[0,-280],[0,-249]], text:"Длинная изба-клуб с крыльцом и лавками — для вечерних посиделок с песнями и танцами."},
+      {q:"Что строим дальше? Жители просят", name:"Силовой двор", author:"@george_the_teacher_napp", x:146, y:-232, cost:29, workers:1, shape:"strength",
+       road:[[146,-232],[146,-199]], text:"Двор для силачей: брёвна, канат и пара гирь — есть где помериться силой."}
     ]
   },
-  /* Частокол (EVENT-01): от реки по западу, югу и востоку обратно к реке; ворота на главной дороге */
-  palisade: { path: [[-122,-2],[-122,-262],[122,-262],[122,28]], gates: [[-122,-29],[122,-50]] },
+  /* Частокол (построен в REEL-006): от реки по западу, югу и востоку обратно к реке; ворота на главной дороге */
+  palisade: { path: [[-185,24],[-185,-290],[-170,-305],[182,-305],[197,-290],[197,30]], gates: [[-185,-46],[197,-46]] },
+  market: [-40, -12, 19.5],
   founder: [0, 14],
   roadY: -46,
   well: [0, -46],
@@ -668,7 +675,58 @@ Object.assign(BUILD,{
     person(m,3.3,3.4,-.6,"#e8dcc4");person(m,-4.2,4.2,.4,"#8a5a6a");
   }
 });
-const OBJ_CAM={palisade:[30,1.8],militia:[26,3],healer:[24,1.8],farm:[46,1.5],well:[17,1.6],watch:[15,1.6],market:[34,1.5],square:[36,1.6],tavern:[30,2.4]};
+/* REEL-006: варианты голосования «Жители просят» — крупнее обычного дома */
+Object.assign(BUILD,{
+  vineyard(m){
+    ground(m,30,24);
+    for(let r=0;r<6;r++){const z=-8+r*2.6;
+      for(let x=-12;x<=6.01;x+=3){m.box(x,.8,z,.12,1.6,.12,K.log2)}
+      m.box(-3,1.45,z,18.4,.05,.05,"#555");
+      for(let x=-11.5;x<=5.6;x+=.9)m.ball(x,1.15,z,.42,(Math.round(x*3)%2)?"#6d9a45":"#7fa94e",.9);
+      for(let x=-11;x<=5;x+=2.2)m.ball(x+.3,.85,z+.25,.16,"#5a2e5a")}
+    // давильня: изба с навесом и бочками
+    m.push([10,0,-2]);cabin(m,{W:6,D:5,H:2.4,rh:1.8,winSide:false});m.pop();
+    m.box(10,.6,3.4,3,.12,1.6,K.log);barrel(m,8.6,4.4);barrel(m,11.4,4.4);m.cyl(10,.55,6.2,.9,1.1,"y","#8a5a32",10);
+    person(m,-3,6.5,.4,"#8a5a6a");person(m,7.5,6.5,-.6,"#6a5a3a");
+  },
+  bakery(m){
+    ground(m,24,20);
+    cabin(m,{W:9,D:7,H:3,rh:2.4,gableWin:true});
+    // большая печь сбоку
+    m.push([-6.6,0,0]);m.box(0,1.1,0,2.4,2.2,3,K.stone);m.cyl(0,2.2,0,1.2,3,"z",K.stone2,10);m.box(0,1,1.52,.9,.9,.06,"#2a1a10");m.box(0,3.6,-.8,.6,2,.6,K.stone);m.pop();
+    [[0,.4,.5],[.3,1.1,.65]].forEach(([dx,dy,r])=>m.ball(-6.6+dx,4.9+dy,-.8,r,"#d9d6cf"));
+    // прилавок с булками
+    m.box(0,.9,5,4,.12,1.2,K.log);m.box(0,.45,5,3.8,.9,1,K.log2);
+    for(let i=0;i<6;i++)m.ball(-1.5+i*.6,1.05,5,.22,"#d9a35a",.7);
+    m.box(0,2.6,5.2,4.6,.1,2,K.roof,[.2,0,0]);[-2.1,2.1].forEach(x=>m.box(x,1.4,6,.12,2.6,.12,K.log2));
+    person(m,1.5,4.1,Math.PI,"#e8dcc4");person(m,-1,6.6,0,"#5a6a8a");
+  },
+  culture(m){
+    ground(m,30,22);
+    cabin(m,{W:16,D:7,H:3.2,rh:2.4,gableWin:true});
+    // крыльцо с навесом
+    m.box(0,.55,4.6,5,.2,2.2,K.log2);[-2.2,2.2].forEach(x=>m.box(x,1.9,5.5,.18,2.8,.18,K.log));
+    m.box(0,3.35,4.8,5.6,.12,2.8,K.roof,[.25,0,0]);
+    // лавки вдоль стены
+    [-6,6].forEach(x=>{m.box(x,.5,4.3,3,.12,.5,K.log);m.box(x-1.3,.25,4.3,.12,.5,.4,K.log2);m.box(x+1.3,.25,4.3,.12,.5,.4,K.log2)});
+    person(m,-6,5,0,"#8a5a6a");person(m,-5.2,5,0,"#5a6a8a");person(m,6,5.2,.3,"#7a5a3a");person(m,1,7.5,-.3,"#6a7a4a");
+  },
+  strength(m){
+    ground(m,26,22,"#c9b48a","#d2bf96");
+    // брёвна разной толщины
+    [[-6,-3,.35,3],[-6,-1.6,.45,3.4],[-6,.1,.55,3.8]].forEach(([x,z,r,l])=>m.cyl(x,r,z,r,l,"x",K.log,8,K.end));
+    // турник
+    m.box(-1,1.4,-5,.2,2.8,.2,K.log2);m.box(3,1.4,-5,.2,2.8,.2,K.log2);m.cyl(1,2.75,-5,.08,4.2,"x","#555",8);
+    // канат с опорой
+    m.box(6.5,2.5,-3,.25,5,.25,K.log2);m.box(6.5,4.9,-2,.2,.2,2.2,K.log2);m.cyl(6.5,2.6,-1,.06,4.4,"y","#c9a96a",6);
+    // гири
+    [[2,2],[2.8,2.3],[3.6,1.9]].forEach(([x,z],i)=>{m.ball(x,.32,z,.32+i*.04,"#3a3a3a");m.cyl(x,.72,z,.12,.2,"x","#3a3a3a",6)});
+    // навес с лавкой
+    [[-9,5],[-5,5],[-9,8],[-5,8]].forEach(([x,z])=>m.box(x,1.2,z,.16,2.4,.16,K.log2));m.box(-7,2.5,6.5,4.6,.12,3.6,K.roof,[.15,0,0]);m.box(-7,.5,6.5,3,.12,.5,K.log);
+    person(m,-6,1.6,.2,"#6a5a4a");person(m,1,-4.2,0,"#5a6a8a");person(m,4.5,3.4,-1.2,"#7a5a3a");
+  }
+});
+const OBJ_CAM={vineyard:[34,1.5],bakery:[28,2],culture:[34,2.2],strength:[30,1.6],palisade:[30,1.8],militia:[26,3],healer:[24,1.8],farm:[46,1.5],well:[17,1.6],watch:[15,1.6],market:[34,1.5],square:[36,1.6],tavern:[30,2.4]};
 function buildObj(kind,ghost){
   const base=new Mesh(),body=new Mesh();
   if(ghost){
@@ -789,7 +847,7 @@ defs.innerHTML=`
  <filter id="tsh" x="-20%" y="-40%" width="140%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#000" flood-opacity=".25"/></filter>`;
 
 const world=el("g",{},svg);
-const W0=-260,W1=300,N0=-150,N1=320; // схема: x, y(вниз)
+const W0=-340,W1=380,N0=-150,N1=400; // схема: x, y(вниз)
 el("rect",{x:W0,y:N0,width:W1-W0,height:N1-N0,fill:"url(#grass)"},world);
 
 // река
@@ -821,13 +879,13 @@ function forest(cx,cy,rx,ry,n,avoid){
     tree(x,y,2.6+rnd()*2.2);
   }
 }
-const inTown=(x,y)=>x>-115&&x<115&&y>40&&y<260; // схема
-forest(-30,-115,260,32,520);            // за рекой
-forest(-215,120,45,130,260,inTown);      // запад
-forest(250,90,40,140,240,inTown);        // восток
-forest(0,290,260,26,300);                // юг
+const inTown=(x,y)=>x>-195&&x<207&&y>30&&y<315; // схема: внутри частокола
+forest(0,-115,340,32,640);              // за рекой
+forest(-275,150,55,150,320,inTown);      // запад
+forest(295,120,55,160,320,inTown);       // восток
+forest(10,352,330,30,380);               // юг
 forest(CITY.grove[0],Y(CITY.grove[1]),CITY.grove[2],CITY.grove[2],70); // восточная роща
-for(let i=0;i<40;i++){const x=W0+rnd()*(W1-W0),y=10+rnd()*270;if(!inTown(x,y)&&!(Math.hypot(x-152,y-118)<30))tree(x,y,2+rnd()*1.5)}
+for(let i=0;i<60;i++){const x=W0+rnd()*(W1-W0),y=10+rnd()*330;if(!inTown(x,y)&&!(Math.hypot(x-152,y-118)<30))tree(x,y,2+rnd()*1.5)}
 
 // дороги
 const roads=el("g",{},world);
@@ -835,10 +893,10 @@ const road=(x1,y1,x2,y2,w,c="#cdb88d")=>el("line",{x1,y1:Y(y1),x2,y2:Y(y2),strok
 road(W0,CITY.roadY,W1,CITY.roadY,7,"#bfa77a");
 road(W0,CITY.roadY,W1,CITY.roadY,5.4);
 road(0,CITY.roadY,0,CITY.founder[1]-4,4.4,"#bfa77a");road(0,CITY.roadY,0,CITY.founder[1]-4,3.2);
-// улицы сетки кварталов
-const ug=el("g",{transform:`rotate(1.8 0 ${Y(-148)})`},roads);
-[-108,-36,36,108].forEach(x=>el("line",{x1:x,y1:Y(-49),x2:x,y2:Y(-249),stroke:"#cdb88d","stroke-width":4},ug));
-[-98,-148,-198,-248].forEach(y=>el("line",{x1:-108,y1:Y(y),x2:108,y2:Y(y),stroke:"#cdb88d","stroke-width":4},ug));
+// улицы вокруг каждого квартала (и вокруг фермы)
+[...Object.values(CITY.quarters),[CITY.farm[0],CITY.farm[1]]].forEach(([cx,cy])=>{
+  el("rect",{x:cx-36,y:Y(cy)-25,width:72,height:50,fill:"none",stroke:"#cdb88d","stroke-width":4,transform:`rotate(1.8 ${cx} ${Y(cy)})`},roads);
+});
 
 // кварталы
 const qg=el("g",{},world);
@@ -883,6 +941,36 @@ for(const [q,[cx,cy]] of Object.entries(CITY.quarters)){
   el("circle",{cx:bx,cy:Y(by),r:4.5,fill:"transparent"},bg);
 })();
 
+// рынок (построен в REEL-006)
+(function(){
+  const [mx,my,r]=CITY.market, g=el("g",{class:"house"},world);g.__act=()=>showBuilding("market");
+  el("circle",{cx:mx,cy:Y(my),r,fill:"#d6c49a"},g);
+  el("circle",{cx:mx,cy:Y(my),r:r-.8,fill:"none",stroke:"rgba(120,90,50,.35)","stroke-width":.5,"stroke-dasharray":"1.5 1"},g);
+  const cols=["#c9563a","#4a7a9a","#7f9a46","#e0b040","#c9563a","#4a7a9a","#7f9a46"];
+  for(let i=0;i<7;i++){const a=i/7*Math.PI*2-Math.PI/2,x=mx+Math.cos(a)*(r-6),y=Y(my)+Math.sin(a)*(r-6);
+    el("rect",{x:-3.6,y:-2.4,width:7.2,height:4.8,rx:.4,fill:cols[i],stroke:"#fff","stroke-width":.35,filter:"url(#sh)",transform:`translate(${x} ${y}) rotate(${a*180/Math.PI+90})`},g)}
+  el("circle",{cx:mx,cy:Y(my),r:2.6,fill:"#8d8a80",filter:"url(#sh)"},g);el("circle",{cx:mx,cy:Y(my),r:1.4,fill:"#4f7d93"},g);
+  el("circle",{cx:mx,cy:Y(my),r:r+1,fill:"transparent"},g);
+  const t=el("text",{x:mx,y:Y(my)+r+5,"text-anchor":"middle",class:"qlabel"},world);t.textContent="РЫНОК";
+})();
+// частокол (построен в REEL-006)
+(function(){
+  const P=CITY.palisade, gap=4, g=el("g",{class:"house"},world);g.__act=()=>showBuilding("palisade");
+  const segs=[];
+  for(let i=0;i<P.path.length-1;i++){
+    const a=P.path[i],b=P.path[i+1];let pts=[a];
+    const cuts=P.gates.filter(([gx,gy])=>Math.abs((b[0]-a[0])*(gy-a[1])-(b[1]-a[1])*(gx-a[0]))<1e-6&&gx>=Math.min(a[0],b[0])-.1&&gx<=Math.max(a[0],b[0])+.1&&gy>=Math.min(a[1],b[1])-.1&&gy<=Math.max(a[1],b[1])+.1);
+    cuts.forEach(([gx,gy])=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L;
+      pts.push([gx-ux*gap,gy-uy*gap],null,[gx+ux*gap,gy+uy*gap]);
+      [[gx-ux*gap,gy-uy*gap],[gx+ux*gap,gy+uy*gap]].forEach(([px,py])=>el("rect",{x:X(px)-1.6,y:Y(py)-1.6,width:3.2,height:3.2,fill:"#6b4428",filter:"url(#sh)"},g))});
+    pts.push(b);let cur=[];pts.forEach(p=>{if(p===null){segs.push(cur);cur=[]}else cur.push(p)});segs.push(cur);
+  }
+  segs.forEach(sg=>{if(sg.length<2)return;const d="M"+sg.map(([x,y])=>X(x)+","+Y(y)).join("L");
+    el("path",{d,fill:"none",stroke:"#6b4428","stroke-width":2.6,"stroke-linejoin":"round",filter:"url(#sh)"},g);
+    el("path",{d,fill:"none",stroke:"#a8774a","stroke-width":1.6,"stroke-dasharray":".9 .45","stroke-linejoin":"round"},g);
+    el("path",{d,fill:"none",stroke:"transparent","stroke-width":9},g)});
+})();
+
 // свободные участки
 const freeG=el("g",{},world);
 CITY.freePlots.forEach(([q,p])=>{
@@ -892,8 +980,12 @@ CITY.freePlots.forEach(([q,p])=>{
   r.__act=()=>showFree(q,p);
 });
 
-// постройки на выбор (призраки)
+// постройки на выбор (призраки) и будущие дороги к ним
 const ghostG=el("g",{},world);
+(CITY.vote&&CITY.vote.options||[]).forEach(o=>{if(!o.road)return;
+  const d="M"+o.road.map(([x,y])=>X(x)+","+Y(y)).join("L");
+  el("path",{d,fill:"none",stroke:"rgba(225,205,160,.55)","stroke-width":3.4,"stroke-linecap":"round"},ghostG);
+  el("path",{d,fill:"none",stroke:"rgba(255,255,255,.9)","stroke-width":.7,"stroke-dasharray":"2 1.6"},ghostG)});
 const ghosts=(CITY.vote&&CITY.vote.options||[]).map(o=>{
   const g=el("g",{class:"house ghost",transform:`translate(${X(o.x)} ${Y(o.y)}) rotate(1.8)`},ghostG);
   const st={fill:"rgba(235,245,255,.32)",stroke:"rgba(255,255,255,.95)","stroke-width":.8,"stroke-dasharray":"2 1.4"};
@@ -923,6 +1015,22 @@ const ghosts=(CITY.vote&&CITY.vote.options||[]).map(o=>{
       el("path",{d,fill:"none",stroke:"rgba(120,80,40,.35)","stroke-width":3.2,"stroke-linecap":"round"},g);
       el("path",{d,fill:"none",stroke:"rgba(255,255,255,.95)","stroke-width":1.4,"stroke-dasharray":"3 2"},g);
       el("path",{d,fill:"none",stroke:"transparent","stroke-width":10},g)});
+  }else if(o.shape==="vineyard"){
+    el("rect",{x:-14,y:-10,width:28,height:20,rx:1,...st},g);
+    for(let i=0;i<6;i++)el("line",{x1:-12,x2:12,y1:-7.5+i*3,y2:-7.5+i*3,stroke:"rgba(190,230,170,.95)","stroke-width":1,"stroke-dasharray":"1.2 .8"},g);
+    el("rect",{x:8,y:-14,width:7,height:5,...st},g);
+  }else if(o.shape==="bakery"){
+    el("rect",{x:-8,y:-6,width:16,height:12,rx:.6,...st},g);
+    el("line",{x1:-8,x2:8,y1:0,y2:0,stroke:"rgba(255,255,255,.9)","stroke-width":.6,"stroke-dasharray":"2 1.4"},g);
+    el("circle",{cx:4,cy:-3,r:1.6,...st},g);
+  }else if(o.shape==="culture"){
+    el("rect",{x:-13,y:-5.5,width:26,height:11,rx:.6,...st},g);
+    el("line",{x1:-13,x2:13,y1:0,y2:0,stroke:"rgba(255,255,255,.9)","stroke-width":.6,"stroke-dasharray":"2 1.4"},g);
+    el("rect",{x:-3.5,y:5.5,width:7,height:3.5,...st},g);
+  }else if(o.shape==="strength"){
+    el("rect",{x:-11,y:-8,width:22,height:16,rx:1,...st},g);
+    el("rect",{x:-8,y:-4,width:10,height:1.6,...st},g);el("circle",{cx:5,cy:2,r:1.6,...st},g);el("circle",{cx:8,cy:4,r:1.3,...st},g);
+    el("rect",{x:-6,y:3,width:4,height:3.5,...st},g);
   }else if(o.shape==="militia"){
     el("rect",{x:-3,y:-3,width:6,height:6,...st},g);el("rect",{x:4,y:-5,width:9,height:7,...st},g);el("circle",{cx:-7,cy:4,r:2.2,...st},g);
   }else if(o.shape==="healer"){
@@ -933,7 +1041,7 @@ const ghosts=(CITY.vote&&CITY.vote.options||[]).map(o=>{
     el("rect",{x:-8,y:-5.5,width:16,height:11,rx:.6,...st},g);
     el("line",{x1:-8,x2:8,y1:0,y2:0,stroke:"rgba(255,255,255,.9)","stroke-width":.6,"stroke-dasharray":"2 1.4"},g);
   }
-  if(o.shape!=="palisade")el("rect",{x:-15,y:-13,width:30,height:26,fill:"transparent"},g);
+  if(o.shape!=="palisade")el("rect",{x:-16,y:-14,width:32,height:28,fill:"transparent"},g);
   g.__act=()=>showGhost(o);
   o.g=g;return o;
 });
@@ -1008,7 +1116,7 @@ function fit(b){
 function homeView(){
   const W=innerWidth,H=innerHeight;
   // весь жилой город + река, с запасом под панели
-  const b={x:-125,y:-40,w:290,h:330};
+  const b={x:-195,y:-48,w:400,h:362};
   const f=fit(b);
   if(W<H){ const k=1.02; return {x:f.x,y:f.y-f.h*0.04,w:f.w*k,h:f.h*k}; }
   return f;
@@ -1141,13 +1249,15 @@ function showGhost(o){
   document.getElementById("cFeat").textContent=o.text+" Напиши в комментариях под роликом с этим голосованием, что выбираешь и почему.";
   const m=document.getElementById("cMeta");m.innerHTML="";
   const add=t=>{const s=document.createElement("span");s.textContent=t;m.appendChild(s)};
-  document.getElementById("c3d").hidden=false;cur3d={obj3d:o.shape,ghost:true,title:"ГОЛОСОВАНИЕ · "+o.q.toUpperCase(),name:o.name};
-  document.getElementById("c3d").textContent="Посмотреть призрак в 3D";
+  document.getElementById("c3d").hidden=false;cur3d={obj3d:o.shape,ghost:true,title:"ГОЛОСОВАНИЕ · БУДУЩАЯ ПОСТРОЙКА",name:o.name+(o.author?" · идея "+o.author:"")};
+  document.getElementById("c3d").textContent="Посмотреть в 3D";
+  if(o.author)add("Идея "+o.author);
   add("Сила: "+o.cost);add(o.workers===0?"Без постоянных работников":o.workers===1?"1 работник постоянно":o.workers+" "+(o.workers<5?"работника":"работников")+" постоянно");
   document.getElementById("cFree").hidden=true;
   openCard();if(o.view)flyTo(viewOn(o.view[0],o.view[1],o.view[2]));else flyTo(viewOn(o.x,o.y,110));
 }
-const BPOS={farm:()=>CITY.farm,well:()=>CITY.well,watch:()=>CITY.watch};
+const BPOS={farm:()=>CITY.farm,well:()=>CITY.well,watch:()=>CITY.watch,market:()=>CITY.market,palisade:()=>[6,-140]};
+const BVIEW={farm:150,market:110,palisade:470};
 function showBuilding(key){
   const b=CITY.buildings.find(b=>b.key===key);if(!b)return;
   track("Постройка: "+b.name);
@@ -1160,7 +1270,7 @@ function showBuilding(key){
   document.getElementById("cFree").hidden=true;
   document.getElementById("c3d").hidden=false;cur3d={obj3d:key,title:"ПОСТРОЙКА ГОРОДА",name:b.name};
   document.getElementById("c3d").textContent="Посмотреть в 3D";
-  openCard();const [x,y]=BPOS[key]();flyTo(viewOn(x,y,key==="farm"?150:80));
+  openCard();const [x,y]=BPOS[key]();flyTo(viewOn(x,y,BVIEW[key]||80));
 }
 function closeCard(fromPop){
   if(!card.classList.contains("show"))return;
@@ -1265,6 +1375,7 @@ count("stPow",CITY.power.free,v=>v+"/"+CITY.power.total);
   document.addEventListener("pointerdown",e=>{if(!chip.contains(e.target))pop.classList.remove("show")});
 })();
 
+document.getElementById("note").textContent="Схема города · данные на "+CITY.updated;
 // ---------- старт ----------
 sizeTags();
 vb=homeView();apply();
